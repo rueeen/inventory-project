@@ -7,9 +7,9 @@
         <a href="{% url 'inventory:equipment_import' %}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-file-earmark-excel"></i> Importar
         </a>
-        <a href="{% url 'inventory:equipment_create' %}" class="btn btn-primary btn-sm">
+        {% if user.profile.role != "student" %}<a href="{% url 'inventory:equipment_create' %}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg"></i> Nuevo Equipo
-        </a>
+        </a>{% endif %}
     </div>
 </div>
 
@@ -30,6 +30,7 @@
             <thead class="table-light">
                 <tr>
                     <th>Nombre</th>
+                    <th>Área</th>
                     <th>Ubicación</th>
                     <th>Stock</th>
                     <th>Estado (B/R/M)</th>
@@ -44,6 +45,7 @@
                         <strong>{{ equipment.name }}</strong><br>
                         <small class="text-muted">UF: {{ equipment.unit_value_uf|default:"-" }}</small>
                     </td>
+                    <td><span class="badge bg-secondary">{{ equipment.academic_area|default:"Sin área" }}</span></td>
                     <td><span class="badge bg-info text-dark">{{ equipment.storage_location }}</span></td>
                     <td>{{ equipment.total_existing }}</td>
                     <td>
@@ -59,17 +61,19 @@
                         {% endif %}
                     </td>
                     <td class="text-end">
+                        {% if user.profile.role != "student" %}
                         <a href="{% url 'inventory:equipment_update' equipment.pk %}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
                         <a href="{% url 'inventory:equipment_delete' equipment.pk %}" class="btn btn-sm btn-outline-danger">
                             <i class="bi bi-trash"></i>
                         </a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center py-4 text-muted">No se encontraron equipos.</td>
+                    <td colspan="7" class="text-center py-4 text-muted">No se encontraron equipos.</td>
                 </tr>
                 {% endfor %}
             </tbody>
