@@ -1,0 +1,82 @@
+/* Variables de color personalizadas */
+:root {
+    --primary-color: #0d6efd;
+    --bg-light: #f8f9fa;
+    --border-color: #dee2e6;
+}
+
+body {
+    background-color: var(--bg-light);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Estilización de Tarjetas */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+    background-color: transparent !important;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+/* Tablas */
+.table thead th {
+    background-color: #f1f5f9;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    border-top: none;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Inputs de Django (para que se vean como Bootstrap sin widget-tweaks) */
+input[type="text"], 
+input[type="number"], 
+input[type="email"], 
+input[type="url"], 
+input[type="password"],
+input[type="decimal"],
+select, 
+textarea {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Badges personalizados */
+.badge-soft-info {
+    background-color: #e0f2fe;
+    color: #0369a1;
+}
+
+/* Utilidades para la brecha de inventario */
+.breach-critical {
+    color: #dc3545;
+    font-weight: bold;
+    background-color: #fff5f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+}

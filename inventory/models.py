@@ -1,0 +1,157 @@
+from decimal import Decimal
+from django.db import models
+from django.core.exceptions import ValidationError
+
+
+class TimeStampedModel(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class StorageLocation(models.Model):
+    name = models.CharField(max_length=150, unique=True)
+
+    class Meta:
+        verbose_name = "Lugar de almacenamiento"
+        verbose_name_plural = "Lugares de almacenamiento"
+
+    def __str__(self):
+        return self.name
+
+
+class Career(models.Model):
+    name = models.CharField(max_length=150, unique=True)
+
+    class Meta:
+        verbose_name = "Carrera"
+        verbose_name_plural = "Carreras"
+
+    def __str__(self):
+        return self.name
+
+
+class Subject(models.Model):
+    code = models.CharField(max_length=30, unique=True)
+    name = models.CharField(max_length=150, blank=True)
+
+    class Meta:
+        verbose_name = "Asignatura"
+        verbose_name_plural = "Asignaturas"
+
+    def __str__(self):
+        return f"{self.code} - {self.name}" if self.name else self.code
+
+
+class Equipment(TimeStampedModel):
+    name = models.CharField("Equipo", max_length=200)
+    detailed_spec = models.TextField("Especificación técnica detallada", blank=True)
+
+    careers = models.ManyToManyField(Career, blank=True, verbose_name="Carreras")
+    subjects = models.ManyToManyField(Subject, blank=True, verbose_name="Asignaturas")
+
+    storage_location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.PROTECT,
+        related_name="equipments",
+        verbose_name="Lugar de almacenamiento"
+    )
+
+    total_existing = models.PositiveIntegerField("Cantidad total existente en la sede", default=0)
+    quantity_needed = models.PositiveIntegerField("Cantidad necesaria", default=0)
+
+    good_count = models.PositiveIntegerField("Bueno", default=0)
+    repairable_count = models.PositiveIntegerField("Reparable", default=0)
+    bad_count = models.PositiveIntegerField("Malo", default=0)
+
+    unit_value_uf = models.DecimalField(
+        "Valor unitario UF (c/iva)",
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    observations = models.TextField("Observaciones", blank=True)
+
+    class Meta:
+        verbose_name = "Equipo"
+        verbose_name_plural = "Equipos"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def breach(self):
+        return max(self.quantity_needed - self.total_existing, 0)
+
+    @property
+    def total_value_uf(self):
+        if self.unit_value_uf is None:
+            return Decimal("0.00")
+        return self.unit_value_uf * self.total_existing
+
+    def clean(self):
+        total_status = self.good_count + self.repairable_count + self.bad_count
+        if total_status != self.total_existing:
+            raise ValidationError(
+                "La suma de Bueno + Reparable + Malo debe ser igual a la cantidad total existente."
+            )
+
+
+class EquipmentCode(models.Model):
+    CODE_TYPE_CHOICES = [
+        ("inventory", "Código inventario"),
+        ("barcode", "Código barra"),
+        ("serial", "Serie"),
+        ("other", "Otro"),
+    ]
+
+    equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name="codes"
+    )
+    code = models.CharField(max_length=100, unique=True)
+    code_type = models.CharField(
+        max_length=20,
+        choices=CODE_TYPE_CHOICES,
+        default="inventory"
+    )
+
+    class Meta:
+        verbose_name = "Código de equipo"
+        verbose_name_plural = "Códigos de equipos"
+
+    def __str__(self):
+        return f"{self.code} ({self.get_code_type_display()})"
+
+
+class Supply(TimeStampedModel):
+    name = models.CharField("Insumo", max_length=200)
+    detailed_spec = models.TextField("Especificación técnica detallada", blank=True)
+
+    storage_location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.PROTECT,
+        related_name="supplies",
+        verbose_name="Lugar de almacenamiento"
+    )
+
+    total_existing = models.PositiveIntegerField(
+        "Cantidad total existente en el laboratorio / taller",
+        default=0
+    )
+
+    observations = models.TextField("Observaciones", blank=True)
+
+    class Meta:
+        verbose_name = "Insumo"
+        verbose_name_plural = "Insumos"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
