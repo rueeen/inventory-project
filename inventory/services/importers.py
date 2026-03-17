@@ -45,24 +45,55 @@ def import_equipment_excel(file_obj):
             if not name:
                 continue
 
+            codes = split_lines(inventory_codes)
+
             location, _ = StorageLocation.objects.get_or_create(
                 name=str(location_name).strip() if location_name else "Sin ubicación"
             )
 
-            equipment, created = Equipment.objects.update_or_create(
-                name=str(name).strip(),
-                storage_location=location,
-                defaults={
-                    "detailed_spec": str(detailed_spec).strip() if detailed_spec else "",
-                    "total_existing": int(total_existing),
-                    "quantity_needed": int(quantity_needed),
-                    "good_count": int(good_count),
-                    "repairable_count": int(repairable_count),
-                    "bad_count": int(bad_count),
-                    "unit_value_uf": Decimal(str(unit_value_uf)) if unit_value_uf not in (None, "") else None,
-                    "observations": str(observations).strip(),
-                }
-            )
+            defaults = {
+                "name": str(name).strip(),
+                "storage_location": location,
+                "detailed_spec": str(detailed_spec).strip() if detailed_spec else "",
+                "total_existing": int(total_existing),
+                "quantity_needed": int(quantity_needed),
+                "good_count": int(good_count),
+                "repairable_count": int(repairable_count),
+                "bad_count": int(bad_count),
+                "unit_value_uf": Decimal(str(unit_value_uf)) if unit_value_uf not in (None, "") else None,
+                "observations": str(observations).strip(),
+            }
+
+            equipment = Equipment.objects.filter(codes__code__in=codes).distinct().first() if codes else None
+            if equipment:
+                created = False
+                for field, value in defaults.items():
+                    setattr(equipment, field, value)
+                equipment.save()
+            else:
+                equipment, created = Equipment.objects.get_or_create(
+                    name=defaults["name"],
+                    storage_location=defaults["storage_location"],
+                    detailed_spec=defaults["detailed_spec"],
+                    defaults={
+                        "total_existing": defaults["total_existing"],
+                        "quantity_needed": defaults["quantity_needed"],
+                        "good_count": defaults["good_count"],
+                        "repairable_count": defaults["repairable_count"],
+                        "bad_count": defaults["bad_count"],
+                        "unit_value_uf": defaults["unit_value_uf"],
+                        "observations": defaults["observations"],
+                    },
+                )
+                if not created:
+                    equipment.total_existing = defaults["total_existing"]
+                    equipment.quantity_needed = defaults["quantity_needed"]
+                    equipment.good_count = defaults["good_count"]
+                    equipment.repairable_count = defaults["repairable_count"]
+                    equipment.bad_count = defaults["bad_count"]
+                    equipment.unit_value_uf = defaults["unit_value_uf"]
+                    equipment.observations = defaults["observations"]
+                    equipment.save()
 
             if created:
                 result["created"] += 1
@@ -84,7 +115,6 @@ def import_equipment_excel(file_obj):
                 )
                 equipment.subjects.add(subject)
 
-            codes = split_lines(inventory_codes)
             existing_codes = set(equipment.codes.values_list("code", flat=True))
             for code in codes:
                 if code not in existing_codes:

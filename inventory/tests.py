@@ -1,9 +1,13 @@
+from io import BytesIO
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from openpyxl import Workbook
 
 from .forms import RequestForm
-from .models import AcademicArea, Equipment, Request, StorageLocation, Supply
+from .models import AcademicArea, Equipment, EquipmentCode, Request, StorageLocation, Supply
+from .services.importers import import_equipment_excel
 
 
 class RequestModelTests(TestCase):
@@ -72,3 +76,73 @@ class RequestFormTests(TestCase):
         form = RequestForm(user=user)
         self.assertIn(self.equipment, form.fields["equipment"].queryset)
         self.assertNotIn(self.foreign_supply, form.fields["supply"].queryset)
+
+
+class ImportEquipmentExcelTests(TestCase):
+    def _build_workbook(self):
+        wb = Workbook()
+        ws = wb.active
+        ws.append([
+            "Código Inventario",
+            "Equipo",
+            "Especificación Técnica Detallada",
+            "Carrera(s) que Utiliza el Equipo",
+            "Código(s)-Nombre(s) de Asignatura(s)",
+            "Lugar de Almacenamiento",
+            "Cantidad Total Existente en la Sede",
+            "Cantidad Necesaria",
+            "Brecha Existente",
+            "Bueno",
+            "Reparable",
+            "Malo",
+            "UF (c/iva)",
+            "Valor Total",
+            "Observaciones",
+        ])
+        ws.append([
+            "UTC000437291\n180000003256",
+            "Computador all-in-one Hp",
+            "Intel core i7-7700T 2.90GHz, 16 GB RAM, Intel HD Graphics 630",
+            "Analista programador e Ingenieria en informatica",
+            "TI3012,TI3013",
+            "LEICA",
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            "",
+            "",
+            "",
+        ])
+        ws.append([
+            "UTC000437114\n180000007008",
+            "Computador all-in-one Hp",
+            "Intel core i7-7700T 2.90GHz, 16 GB RAM, Intel HD Graphics 631",
+            "Analista programador e Ingenieria en informatica",
+            "TI3012,TI3013",
+            "LEICA",
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            "",
+            "",
+            "",
+        ])
+
+        stream = BytesIO()
+        wb.save(stream)
+        stream.seek(0)
+        return stream
+
+    def test_import_creates_one_equipment_per_excel_row_when_codes_are_distinct(self):
+        result = import_equipment_excel(self._build_workbook())
+
+        self.assertEqual(result["errors"], [])
+        self.assertEqual(result["created"], 2)
+        self.assertEqual(Equipment.objects.count(), 2)
+        self.assertEqual(EquipmentCode.objects.count(), 4)
