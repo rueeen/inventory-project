@@ -7,9 +7,9 @@
         <a href="{% url 'inventory:supply_import' %}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-file-earmark-excel"></i> Importar
         </a>
-        <a href="{% url 'inventory:supply_create' %}" class="btn btn-primary btn-sm">
+        {% if user.profile.role != "student" %}<a href="{% url 'inventory:supply_create' %}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg"></i> Nuevo Insumo
-        </a>
+        </a>{% endif %}
     </div>
 </div>
 
@@ -31,6 +31,7 @@
                 <tr>
                     <th>Nombre</th>
                     <th>Especificación</th>
+                    <th>Área</th>
                     <th>Ubicación</th>
                     <th>Stock</th>
                     <th class="text-end">Acciones</th>
@@ -47,20 +48,23 @@
                             <span class="text-muted">Sin especificación</span>
                         {% endif %}
                     </td>
+                    <td><span class="badge bg-secondary">{{ supply.academic_area|default:"Sin área" }}</span></td>
                     <td><span class="badge bg-info text-dark">{{ supply.storage_location }}</span></td>
                     <td>{{ supply.total_existing }}</td>
                     <td class="text-end">
+                        {% if user.profile.role != "student" %}
                         <a href="{% url 'inventory:supply_update' supply.pk %}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
                         <a href="{% url 'inventory:supply_delete' supply.pk %}" class="btn btn-sm btn-outline-danger">
                             <i class="bi bi-trash"></i>
                         </a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center py-4 text-muted">No se encontraron insumos.</td>
+                    <td colspan="6" class="text-center py-4 text-muted">No se encontraron insumos.</td>
                 </tr>
                 {% endfor %}
             </tbody>

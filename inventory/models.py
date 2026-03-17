@@ -1,6 +1,11 @@
 from decimal import Decimal
-from django.db import models
+
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class TimeStampedModel(models.Model):
@@ -9,6 +14,60 @@ class TimeStampedModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class AcademicArea(models.Model):
+    name = models.CharField("Área académica", max_length=150, unique=True)
+
+    class Meta:
+        verbose_name = "Área académica"
+        verbose_name_plural = "Áreas académicas"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class UserProfile(models.Model):
+    ROLE_STUDENT = "student"
+    ROLE_COORDINATOR = "coordinator"
+    ROLE_PANOL = "panol"
+
+    ROLE_CHOICES = [
+        (ROLE_STUDENT, "Estudiante"),
+        (ROLE_COORDINATOR, "Coordinador"),
+        (ROLE_PANOL, "Pañol"),
+    ]
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
+    role = models.CharField("Rol", max_length=20, choices=ROLE_CHOICES, default=ROLE_STUDENT)
+    academic_area = models.ForeignKey(
+        AcademicArea,
+        on_delete=models.PROTECT,
+        related_name="users",
+        null=True,
+        blank=True,
+        verbose_name="Área académica",
+    )
+
+    class Meta:
+        verbose_name = "Perfil de usuario"
+        verbose_name_plural = "Perfiles de usuario"
+
+    def __str__(self):
+        return f"{self.user.username} ({self.get_role_display()})"
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    if hasattr(instance, "profile"):
+        instance.profile.save()
 
 
 class StorageLocation(models.Model):
@@ -49,6 +108,14 @@ class Equipment(TimeStampedModel):
     name = models.CharField("Equipo", max_length=200)
     detailed_spec = models.TextField("Especificación técnica detallada", blank=True)
 
+    academic_area = models.ForeignKey(
+        AcademicArea,
+        on_delete=models.PROTECT,
+        related_name="equipments",
+        verbose_name="Área académica",
+        null=True,
+        blank=True,
+    )
     careers = models.ManyToManyField(Career, blank=True, verbose_name="Carreras")
     subjects = models.ManyToManyField(Subject, blank=True, verbose_name="Asignaturas")
 
@@ -134,6 +201,15 @@ class Supply(TimeStampedModel):
     name = models.CharField("Insumo", max_length=200)
     detailed_spec = models.TextField("Especificación técnica detallada", blank=True)
 
+    academic_area = models.ForeignKey(
+        AcademicArea,
+        on_delete=models.PROTECT,
+        related_name="supplies",
+        verbose_name="Área académica",
+        null=True,
+        blank=True,
+    )
+
     storage_location = models.ForeignKey(
         StorageLocation,
         on_delete=models.PROTECT,
@@ -155,3 +231,39 @@ class Supply(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+
+class Request(TimeStampedModel):
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pendiente"),
+        (STATUS_APPROVED, "Aprobada"),
+        (STATUS_REJECTED, "Rechazada"),
+    ]
+
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="requests")
+    academic_area = models.ForeignKey(AcademicArea, on_delete=models.PROTECT, related_name="requests")
+    equipment = models.ForeignKey(Equipment, on_delete=models.PROTECT, related_name="requests", null=True, blank=True)
+    supply = models.ForeignKey(Supply, on_delete=models.PROTECT, related_name="requests", null=True, blank=True)
+    quantity = models.PositiveIntegerField("Cantidad solicitada", default=1)
+    reason = models.TextField("Motivo", blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+
+    class Meta:
+        verbose_name = "Solicitud"
+        verbose_name_plural = "Solicitudes"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        item = self.equipment or self.supply
+        return f"{self.requester.username} - {item}"
+
+    def clean(self):
+        if bool(self.equipment) == bool(self.supply):
+            raise ValidationError("Debes seleccionar un equipo o un insumo, pero no ambos.")
+        item = self.equipment or self.supply
+        if item and item.academic_area_id != self.academic_area_id:
+            raise ValidationError("El recurso solicitado no pertenece al área académica seleccionada.")

@@ -1,5 +1,12 @@
 from django import forms
-from .models import Equipment, Supply, EquipmentCode
+from django.contrib.auth.forms import AuthenticationForm
+
+from .models import Equipment, Supply, EquipmentCode, Request
+
+
+class LoginForm(AuthenticationForm):
+    username = forms.CharField(label="Usuario")
+    password = forms.CharField(label="Contraseña", widget=forms.PasswordInput)
 
 
 class EquipmentForm(forms.ModelForm):
@@ -15,6 +22,7 @@ class EquipmentForm(forms.ModelForm):
         fields = [
             "name",
             "detailed_spec",
+            "academic_area",
             "careers",
             "subjects",
             "storage_location",
@@ -76,6 +84,7 @@ class SupplyForm(forms.ModelForm):
         fields = [
             "name",
             "detailed_spec",
+            "academic_area",
             "storage_location",
             "total_existing",
             "observations",
@@ -84,6 +93,36 @@ class SupplyForm(forms.ModelForm):
             "detailed_spec": forms.Textarea(attrs={"rows": 3}),
             "observations": forms.Textarea(attrs={"rows": 3}),
         }
+
+
+class RequestForm(forms.ModelForm):
+    class Meta:
+        model = Request
+        fields = ["equipment", "supply", "quantity", "reason"]
+        widgets = {
+            "reason": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user")
+        super().__init__(*args, **kwargs)
+        profile = getattr(user, "profile", None)
+        area = getattr(profile, "academic_area", None)
+
+        if area:
+            self.fields["equipment"].queryset = Equipment.objects.filter(academic_area=area)
+            self.fields["supply"].queryset = Supply.objects.filter(academic_area=area)
+        else:
+            self.fields["equipment"].queryset = Equipment.objects.none()
+            self.fields["supply"].queryset = Supply.objects.none()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        equipment = cleaned_data.get("equipment")
+        supply = cleaned_data.get("supply")
+        if bool(equipment) == bool(supply):
+            raise forms.ValidationError("Selecciona un equipo o un insumo.")
+        return cleaned_data
 
 
 class ImportExcelForm(forms.Form):
