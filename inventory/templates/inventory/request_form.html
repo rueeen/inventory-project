@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="request-shell">
-    <form method="post" novalidate>
+    <form method="post" novalidate data-request-builder>
         {% csrf_token %}
         {{ item_formset.management_form }}
 
@@ -69,8 +69,21 @@
                 </div>
             </div>
 
+            <div class="request-builder-card">
+                <div>
+                    <p class="request-kicker mb-2">Detalle del préstamo</p>
+                    <h2 class="request-builder-title">Arma tu solicitud como un carrito</h2>
+                    <p class="request-builder-copy mb-0">Busca equipos o insumos, selecciónalos desde el modal y ajusta la cantidad antes de guardar.</p>
+                </div>
+                <div class="request-builder-actions">
+                    <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#resourcePickerModal">
+                        <i class="bi bi-search me-2"></i>Buscar y agregar
+                    </button>
+                </div>
+            </div>
+
             <div class="request-table-wrap">
-                <table class="request-table">
+                <table class="request-table" data-request-items-table>
                     <thead>
                         <tr>
                             <th>DESCRIPCIÓN</th>
@@ -81,21 +94,31 @@
                     </thead>
                     <tbody>
                         {% for item_form in item_formset %}
-                        <tr>
+                        <tr class="request-item-row is-empty{% if item_form.non_field_errors or item_form.quantity.errors %} has-errors{% endif %}" data-form-row>
                             <td>
-                                <div class="request-resource-grid">
+                                <div class="request-resource-grid request-resource-grid--hidden">
                                     {{ item_form.id }}
-                                    <div>
+                                    <div class="request-form-controls">
                                         <span class="request-mini-label">Equipo</span>
                                         {{ item_form.equipment }}
                                     </div>
-                                    <div>
+                                    <div class="request-form-controls">
                                         <span class="request-mini-label">Insumo</span>
                                         {{ item_form.supply }}
                                     </div>
-                                    {% if item_form.non_field_errors %}
-                                        <div class="request-row-error">{{ item_form.non_field_errors }}</div>
-                                    {% endif %}
+                                    <div class="request-row-error">
+                                        {% if item_form.non_field_errors %}{{ item_form.non_field_errors }}{% endif %}
+                                    </div>
+                                </div>
+                                <div class="request-selected-item" data-item-summary>
+                                    <div>
+                                        <span class="request-selected-type badge text-bg-light">Sin selección</span>
+                                        <strong class="request-selected-name d-block mt-2">Selecciona un equipo o insumo</strong>
+                                        <span class="request-selected-meta text-muted">Usa el buscador para agregar recursos a la solicitud.</span>
+                                    </div>
+                                    <button type="button" class="btn btn-link text-danger p-0 request-remove-btn" data-remove-item hidden>
+                                        <i class="bi bi-trash3 me-1"></i>Quitar
+                                    </button>
                                 </div>
                             </td>
                             <td class="request-qty-cell">
@@ -111,6 +134,110 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                <p class="request-helper-text mb-0">Puedes agregar varios recursos y luego ajustar cantidades o quitarlos antes de enviar.</p>
+            </div>
+
+            <div class="modal fade" id="resourcePickerModal" tabindex="-1" aria-labelledby="resourcePickerModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div>
+                                <h2 class="modal-title fs-5" id="resourcePickerModalLabel">Buscar recursos para el préstamo</h2>
+                                <p class="text-muted small mb-0">Filtra por nombre, código, ubicación o descripción y agrega los elementos al carrito.</p>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="request-picker-toolbar">
+                                <div class="request-picker-search">
+                                    <i class="bi bi-search"></i>
+                                    <input type="search" class="form-control" placeholder="Buscar equipo o insumo..." data-resource-search>
+                                </div>
+                                <div class="btn-group" role="group" aria-label="Filtro de recursos">
+                                    <input type="radio" class="btn-check" name="resource-type-filter" id="filter-all" autocomplete="off" value="all" checked>
+                                    <label class="btn btn-outline-secondary" for="filter-all">Todos</label>
+
+                                    <input type="radio" class="btn-check" name="resource-type-filter" id="filter-equipment" autocomplete="off" value="equipment">
+                                    <label class="btn btn-outline-secondary" for="filter-equipment">Equipos</label>
+
+                                    <input type="radio" class="btn-check" name="resource-type-filter" id="filter-supply" autocomplete="off" value="supply">
+                                    <label class="btn btn-outline-secondary" for="filter-supply">Insumos</label>
+                                </div>
+                            </div>
+
+                            <div class="request-picker-layout mt-3">
+                                <div class="request-picker-results">
+                                    {% for item_form in item_formset %}
+                                        {% if forloop.first %}
+                                            {% for equipment in item_form.fields.equipment.queryset %}
+                                            <button
+                                                type="button"
+                                                class="request-resource-option"
+                                                data-resource-option
+                                                data-resource-type="equipment"
+                                                data-resource-id="{{ equipment.pk }}"
+                                                data-resource-label="{{ equipment.name|escape }}"
+                                                data-resource-code="{{ equipment.inventory_code|default:''|escape }}"
+                                                data-resource-location="{{ equipment.storage_location|default:''|escape }}"
+                                                data-resource-detail="{{ equipment.detailed_spec|default:''|escape }}"
+                                                data-resource-search="{{ equipment.name|lower }} {{ equipment.inventory_code|lower }} {{ equipment.storage_location|lower }} {{ equipment.detailed_spec|lower }}"
+                                            >
+                                                <span class="request-resource-badge badge text-bg-primary-subtle">Equipo</span>
+                                                <strong>{{ equipment.name }}</strong>
+                                                <span class="text-muted small">Código: {{ equipment.inventory_code }} · Ubicación: {{ equipment.storage_location }}</span>
+                                                {% if equipment.detailed_spec %}
+                                                <span class="small">{{ equipment.detailed_spec|truncatechars:120 }}</span>
+                                                {% endif %}
+                                            </button>
+                                            {% endfor %}
+                                            {% for supply in item_form.fields.supply.queryset %}
+                                            <button
+                                                type="button"
+                                                class="request-resource-option"
+                                                data-resource-option
+                                                data-resource-type="supply"
+                                                data-resource-id="{{ supply.pk }}"
+                                                data-resource-label="{{ supply.name|escape }}"
+                                                data-resource-code=""
+                                                data-resource-location="{{ supply.storage_location|default:''|escape }}"
+                                                data-resource-detail="{{ supply.detailed_spec|default:''|escape }}"
+                                                data-resource-stock="{{ supply.total_existing }}"
+                                                data-resource-search="{{ supply.name|lower }} {{ supply.storage_location|lower }} {{ supply.detailed_spec|lower }}"
+                                            >
+                                                <span class="request-resource-badge badge text-bg-success-subtle">Insumo</span>
+                                                <strong>{{ supply.name }}</strong>
+                                                <span class="text-muted small">Stock: {{ supply.total_existing }} · Ubicación: {{ supply.storage_location }}</span>
+                                                {% if supply.detailed_spec %}
+                                                <span class="small">{{ supply.detailed_spec|truncatechars:120 }}</span>
+                                                {% endif %}
+                                            </button>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    <div class="request-empty-search text-muted" data-empty-search hidden>
+                                        No encontramos recursos con ese criterio. Prueba con otro texto o cambia el filtro.
+                                    </div>
+                                </div>
+
+                                <aside class="request-picker-cart">
+                                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                                        <div>
+                                            <p class="request-kicker mb-1">Carrito</p>
+                                            <h3 class="h6 mb-0">Recursos seleccionados</h3>
+                                        </div>
+                                        <span class="badge text-bg-dark" data-cart-count>0</span>
+                                    </div>
+                                    <div data-cart-items class="request-cart-items"></div>
+                                    <p class="text-muted small mb-0" data-cart-empty>Selecciona elementos del listado para agregarlos al préstamo.</p>
+                                </aside>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Seguir editando</button>
+                            <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Listo, volver a la solicitud</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="request-reason-grid">
@@ -162,4 +289,226 @@
         </div>
     </form>
 </div>
+
+<script>
+(function () {
+    const form = document.querySelector('[data-request-builder]');
+    if (!form) return;
+
+    const rows = Array.from(form.querySelectorAll('[data-form-row]'));
+    const resourceOptions = Array.from(form.querySelectorAll('[data-resource-option]'));
+    const searchInput = form.querySelector('[data-resource-search]');
+    const emptySearch = form.querySelector('[data-empty-search]');
+    const cartItems = form.querySelector('[data-cart-items]');
+    const cartCount = form.querySelector('[data-cart-count]');
+    const cartEmpty = form.querySelector('[data-cart-empty]');
+    const typeFilters = Array.from(form.querySelectorAll('input[name="resource-type-filter"]'));
+
+    function rowState(row) {
+        return {
+            equipment: row.querySelector('select[name$="-equipment"]'),
+            supply: row.querySelector('select[name$="-supply"]'),
+            quantity: row.querySelector('input[name$="-quantity"]'),
+            received: row.querySelector('input[name$="-received"]'),
+            delivered: row.querySelector('input[name$="-delivered"]'),
+            deleted: row.querySelector('input[name$="-DELETE"]'),
+            summary: row.querySelector('[data-item-summary]'),
+            removeBtn: row.querySelector('[data-remove-item]'),
+            typeBadge: row.querySelector('.request-selected-type'),
+            name: row.querySelector('.request-selected-name'),
+            meta: row.querySelector('.request-selected-meta'),
+        };
+    }
+
+    function selectedType() {
+        const checked = typeFilters.find((input) => input.checked);
+        return checked ? checked.value : 'all';
+    }
+
+    function resourceMeta(option) {
+        const type = option.dataset.resourceType;
+        const code = option.dataset.resourceCode;
+        const location = option.dataset.resourceLocation;
+        const detail = option.dataset.resourceDetail;
+        const stock = option.dataset.resourceStock;
+        const bits = [];
+        if (type === 'equipment' && code) bits.push(`Código ${code}`);
+        if (type === 'supply' && stock) bits.push(`Stock ${stock}`);
+        if (location) bits.push(`Ubicación ${location}`);
+        if (detail) bits.push(detail);
+        return bits.join(' · ');
+    }
+
+    function activeRows() {
+        return rows.filter((row) => {
+            const state = rowState(row);
+            return !state.deleted.checked && (state.equipment.value || state.supply.value);
+        });
+    }
+
+    function syncSummary(row) {
+        const state = rowState(row);
+        const equipmentOption = state.equipment.options[state.equipment.selectedIndex];
+        const supplyOption = state.supply.options[state.supply.selectedIndex];
+        const selectedOption = state.equipment.value ? equipmentOption : state.supply.value ? supplyOption : null;
+
+        row.classList.toggle('is-empty', !selectedOption);
+
+        if (!selectedOption) {
+            state.typeBadge.textContent = 'Sin selección';
+            state.typeBadge.className = 'request-selected-type badge text-bg-light';
+            state.name.textContent = 'Selecciona un equipo o insumo';
+            state.meta.textContent = 'Usa el buscador para agregar recursos a la solicitud.';
+            state.removeBtn.hidden = true;
+            return;
+        }
+
+        const type = state.equipment.value ? 'equipment' : 'supply';
+        const resourceOption = resourceOptions.find((option) => option.dataset.resourceType === type && option.dataset.resourceId === selectedOption.value);
+        state.typeBadge.textContent = type === 'equipment' ? 'Equipo' : 'Insumo';
+        state.typeBadge.className = `request-selected-type badge ${type === 'equipment' ? 'text-bg-primary-subtle' : 'text-bg-success-subtle'}`;
+        state.name.textContent = selectedOption.textContent.trim();
+        state.meta.textContent = resourceOption ? resourceMeta(resourceOption) : 'Recurso agregado al préstamo.';
+        state.removeBtn.hidden = false;
+    }
+
+    function syncCart() {
+        const currentRows = activeRows();
+        cartItems.innerHTML = '';
+        cartCount.textContent = currentRows.length;
+        cartEmpty.hidden = currentRows.length > 0;
+
+        currentRows.forEach((row, index) => {
+            const state = rowState(row);
+            const type = state.equipment.value ? 'equipment' : 'supply';
+            const option = state.equipment.value ? state.equipment.options[state.equipment.selectedIndex] : state.supply.options[state.supply.selectedIndex];
+            const resourceOption = resourceOptions.find((item) => item.dataset.resourceType === type && item.dataset.resourceId === option.value);
+
+            const card = document.createElement('div');
+            card.className = 'request-cart-card';
+            card.innerHTML = `
+                <div>
+                    <span class="badge ${type === 'equipment' ? 'text-bg-primary-subtle' : 'text-bg-success-subtle'}">${type === 'equipment' ? 'Equipo' : 'Insumo'}</span>
+                    <strong class="d-block mt-2">${option.textContent.trim()}</strong>
+                    <span class="text-muted small">${resourceOption ? resourceMeta(resourceOption) : ''}</span>
+                </div>
+                <div class="request-cart-card__actions">
+                    <label class="small text-muted">Cantidad</label>
+                    <input type="number" min="1" value="${state.quantity.value || 1}" data-cart-qty="${index}">
+                    <button type="button" class="btn btn-link text-danger p-0" data-cart-remove="${index}">Quitar</button>
+                </div>
+            `;
+            cartItems.appendChild(card);
+        });
+
+        cartItems.querySelectorAll('[data-cart-qty]').forEach((input) => {
+            input.addEventListener('input', () => {
+                const row = currentRows[Number(input.dataset.cartQty)];
+                const state = rowState(row);
+                state.quantity.value = input.value || 1;
+            });
+        });
+
+        cartItems.querySelectorAll('[data-cart-remove]').forEach((button) => {
+            button.addEventListener('click', () => {
+                clearRow(currentRows[Number(button.dataset.cartRemove)]);
+            });
+        });
+    }
+
+    function refreshOptionStates() {
+        const usedKeys = new Set(activeRows().map((row) => {
+            const state = rowState(row);
+            return state.equipment.value ? `equipment:${state.equipment.value}` : `supply:${state.supply.value}`;
+        }));
+
+        resourceOptions.forEach((option) => {
+            const key = `${option.dataset.resourceType}:${option.dataset.resourceId}`;
+            const isUsed = usedKeys.has(key);
+            option.disabled = isUsed;
+            option.classList.toggle('is-selected', isUsed);
+        });
+    }
+
+    function refreshSearch() {
+        const term = (searchInput.value || '').trim().toLowerCase();
+        const filter = selectedType();
+        let visible = 0;
+
+        resourceOptions.forEach((option) => {
+            const matchesText = !term || option.dataset.resourceSearch.includes(term);
+            const matchesType = filter === 'all' || option.dataset.resourceType === filter;
+            const show = matchesText && matchesType;
+            option.hidden = !show;
+            if (show) visible += 1;
+        });
+
+        emptySearch.hidden = visible > 0;
+    }
+
+    function clearRow(row) {
+        const state = rowState(row);
+        state.equipment.value = '';
+        state.supply.value = '';
+        state.quantity.value = state.quantity.defaultValue || 1;
+        state.received.checked = false;
+        state.delivered.checked = false;
+        state.deleted.checked = false;
+        syncSummary(row);
+        refreshOptionStates();
+        syncCart();
+    }
+
+    function nextEmptyRow() {
+        return rows.find((row) => {
+            const state = rowState(row);
+            return !state.deleted.checked && !state.equipment.value && !state.supply.value;
+        });
+    }
+
+    function assignResource(option) {
+        const row = nextEmptyRow();
+        if (!row) {
+            window.alert('Ya no quedan filas disponibles para agregar más recursos en esta solicitud.');
+            return;
+        }
+
+        const state = rowState(row);
+        state.deleted.checked = false;
+        state.received.checked = false;
+        state.delivered.checked = false;
+        state.quantity.value = state.quantity.value || 1;
+
+        if (option.dataset.resourceType === 'equipment') {
+            state.equipment.value = option.dataset.resourceId;
+            state.supply.value = '';
+        } else {
+            state.supply.value = option.dataset.resourceId;
+            state.equipment.value = '';
+        }
+
+        syncSummary(row);
+        refreshOptionStates();
+        syncCart();
+    }
+
+    resourceOptions.forEach((option) => {
+        option.addEventListener('click', () => assignResource(option));
+    });
+
+    rows.forEach((row) => {
+        const state = rowState(row);
+        syncSummary(row);
+        state.quantity.addEventListener('input', syncCart);
+        state.removeBtn.addEventListener('click', () => clearRow(row));
+    });
+
+    searchInput.addEventListener('input', refreshSearch);
+    typeFilters.forEach((input) => input.addEventListener('change', refreshSearch));
+
+    refreshOptionStates();
+    refreshSearch();
+    syncCart();
+})();
+</script>
 {% endblock %}

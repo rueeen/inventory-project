@@ -121,7 +121,7 @@ BaseRequestItemFormSet = inlineformset_factory(
     Request,
     RequestItem,
     form=RequestItemForm,
-    extra=8,
+    extra=20,
     can_delete=True,
 )
 
