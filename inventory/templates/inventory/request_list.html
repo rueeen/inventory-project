@@ -32,17 +32,19 @@
                     <td>{{ req.teacher_name|default:"-" }}</td>
                     <td>
                         <strong>{{ req.subject_name }}</strong><br>
-                        <small class="text-muted">Clase: {{ req.class_datetime|date:"d-m-Y H:i" }}</small>
+                        <small class="text-muted">Clase: {{ req.class_datetime|date:"d-m-Y H:i"|default:"-" }}</small>
                     </td>
                     <td>{{ req.academic_area }}</td>
                     <td>
                         <ul class="request-summary-list mb-0">
-                            {% for item in req.items.all %}
-                            <li>{{ item.resource_name }} — {{ item.quantity }}</li>
+                            {% for item in req.items_summary %}
+                            <li>{{ item }}</li>
+                            {% empty %}
+                            <li class="text-muted">Sin ítems registrados.</li>
                             {% endfor %}
                         </ul>
                     </td>
-                    <td>{{ req.get_status_display }}</td>
+                    <td>{{ req.status_display }}</td>
                 </tr>
                 {% empty %}
                 <tr>

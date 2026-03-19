@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db import connection
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
@@ -123,14 +124,113 @@ class RequestListView(LoginRequiredMixin, AreaFilteredMixin, ListView):
     template_name = "inventory/request_list.html"
     context_object_name = "requests"
 
+    LEGACY_REQUEST_COLUMNS = {
+        "id",
+        "created_at",
+        "status",
+        "academic_area_id",
+        "requester_id",
+        "equipment_id",
+        "supply_id",
+        "quantity",
+    }
+
+    def _table_columns(self, table_name):
+        with connection.cursor() as cursor:
+            description = connection.introspection.get_table_description(cursor, table_name)
+        return {column.name for column in description}
+
+    def _uses_legacy_request_schema(self):
+        table_names = set(connection.introspection.table_names())
+        if "inventory_requestitem" not in table_names:
+            return True
+
+        request_columns = self._table_columns(Request._meta.db_table)
+        return self.LEGACY_REQUEST_COLUMNS.issubset(request_columns)
+
+    def _legacy_queryset(self):
+        profile = getattr(self.request.user, "profile", None)
+        params = []
+        where_clauses = []
+
+        if not self.request.user.is_superuser:
+            if profile.role == UserProfile.ROLE_STUDENT:
+                where_clauses.append("r.requester_id = %s")
+                params.append(self.request.user.id)
+            else:
+                where_clauses.append("r.academic_area_id = %s")
+                params.append(profile.academic_area_id)
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        query = f"""
+            SELECT
+                r.id,
+                r.created_at,
+                r.status,
+                COALESCE(a.name, '') AS academic_area,
+                COALESCE(e.name, s.name, '') AS resource_name,
+                COALESCE(r.quantity, 0) AS quantity
+            FROM inventory_request r
+            INNER JOIN inventory_academicarea a ON a.id = r.academic_area_id
+            LEFT JOIN inventory_equipment e ON e.id = r.equipment_id
+            LEFT JOIN inventory_supply s ON s.id = r.supply_id
+            {where_sql}
+            ORDER BY r.created_at DESC
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+        status_labels = dict(Request.STATUS_CHOICES)
+        return [
+            {
+                "id": row[0],
+                "created_at": row[1],
+                "student_name": "-",
+                "teacher_name": "-",
+                "subject_name": "Solicitud heredada",
+                "class_datetime": None,
+                "academic_area": row[3],
+                "items_summary": [
+                    f"{row[4]} — {row[5]}"
+                ] if row[4] else [],
+                "status_display": status_labels.get(row[2], row[2]),
+            }
+            for row in rows
+        ]
+
     def get_queryset(self):
+        if self._uses_legacy_request_schema():
+            return self._legacy_queryset()
+
         queryset = Request.objects.select_related("requester", "academic_area").prefetch_related("items__equipment", "items__supply")
         if self.request.user.is_superuser:
-            return queryset
-        profile = self.request.user.profile
-        if profile.role == UserProfile.ROLE_STUDENT:
-            return queryset.filter(requester=self.request.user)
-        return queryset.filter(academic_area=profile.academic_area)
+            filtered_queryset = queryset
+        else:
+            profile = self.request.user.profile
+            if profile.role == UserProfile.ROLE_STUDENT:
+                filtered_queryset = queryset.filter(requester=self.request.user)
+            else:
+                filtered_queryset = queryset.filter(academic_area=profile.academic_area)
+
+        return [
+            {
+                "id": request.id,
+                "created_at": request.created_at,
+                "student_name": request.student_name,
+                "teacher_name": request.teacher_name or "-",
+                "subject_name": request.subject_name,
+                "class_datetime": request.class_datetime,
+                "academic_area": str(request.academic_area),
+                "items_summary": [
+                    f"{item.resource_name} — {item.quantity}"
+                    for item in request.items.all()
+                ],
+                "status_display": request.get_status_display(),
+            }
+            for request in filtered_queryset
+        ]
 
 
 class RequestCreateView(LoginRequiredMixin, StudentRequiredMixin, CreateView):
