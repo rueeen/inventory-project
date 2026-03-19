@@ -1,7 +1,7 @@
 from decimal import Decimal
 from openpyxl import load_workbook
 
-from ..models import Equipment, Supply, StorageLocation, Career, Subject, EquipmentCode
+from ..models import AcademicArea, Equipment, Supply, StorageLocation, Career, Subject
 
 
 def split_values(text, separator=","):
@@ -10,14 +10,43 @@ def split_values(text, separator=","):
     return [item.strip() for item in str(text).split(separator) if item and str(item).strip()]
 
 
-def split_lines(text):
-    if not text:
+def normalize_code(value):
+    if value is None:
+        return ""
+    return str(value).replace('"', "").replace("'", "").replace("\n", "").replace("\r", "").strip()
+
+
+def extract_codes(value):
+    if not value:
         return []
-    return [item.strip() for item in str(text).splitlines() if item and str(item).strip()]
+
+    raw = str(value).replace("\r", "\n")
+    parts = raw.split("\n")
+
+    codes = []
+    for part in parts:
+        cleaned = normalize_code(part)
+        if cleaned:
+            codes.append(cleaned)
+
+    # quita duplicados manteniendo orden
+    return list(dict.fromkeys(codes))
+
+
+def resolve_condition(good_count, repairable_count, bad_count):
+    good_count = int(good_count or 0)
+    repairable_count = int(repairable_count or 0)
+    bad_count = int(bad_count or 0)
+
+    if bad_count > 0:
+        return "bad"
+    if repairable_count > 0:
+        return "repairable"
+    return "good"
 
 
 def import_equipment_excel(file_obj):
-    wb = load_workbook(file_obj)
+    wb = load_workbook(file_obj, data_only=True)
     ws = wb.active
 
     result = {
@@ -34,95 +63,71 @@ def import_equipment_excel(file_obj):
             careers_text = row[3]
             subjects_text = row[4]
             location_name = row[5]
-            total_existing = row[6] or 0
-            quantity_needed = row[7] or 0
             good_count = row[9] or 0
             repairable_count = row[10] or 0
             bad_count = row[11] or 0
             unit_value_uf = row[12]
             observations = row[14] or ""
+            academic_area_name = row[15]
 
             if not name:
                 continue
 
-            codes = split_lines(inventory_codes)
+            codes = extract_codes(inventory_codes)
+            if not codes:
+                result["errors"].append(
+                    f"Fila {row_num}: no se encontró un código de inventario válido.")
+                continue
 
             location, _ = StorageLocation.objects.get_or_create(
-                name=str(location_name).strip() if location_name else "Sin ubicación"
+                name=str(location_name).strip(
+                ) if location_name else "Sin ubicación"
             )
 
-            defaults = {
-                "name": str(name).strip(),
-                "storage_location": location,
-                "detailed_spec": str(detailed_spec).strip() if detailed_spec else "",
-                "total_existing": int(total_existing),
-                "quantity_needed": int(quantity_needed),
-                "good_count": int(good_count),
-                "repairable_count": int(repairable_count),
-                "bad_count": int(bad_count),
-                "unit_value_uf": Decimal(str(unit_value_uf)) if unit_value_uf not in (None, "") else None,
-                "observations": str(observations).strip(),
-            }
-
-            equipment = Equipment.objects.filter(codes__code__in=codes).distinct().first() if codes else None
-            if equipment:
-                created = False
-                for field, value in defaults.items():
-                    setattr(equipment, field, value)
-                equipment.save()
-            else:
-                equipment, created = Equipment.objects.get_or_create(
-                    name=defaults["name"],
-                    storage_location=defaults["storage_location"],
-                    detailed_spec=defaults["detailed_spec"],
-                    defaults={
-                        "total_existing": defaults["total_existing"],
-                        "quantity_needed": defaults["quantity_needed"],
-                        "good_count": defaults["good_count"],
-                        "repairable_count": defaults["repairable_count"],
-                        "bad_count": defaults["bad_count"],
-                        "unit_value_uf": defaults["unit_value_uf"],
-                        "observations": defaults["observations"],
-                    },
-                )
-                if not created:
-                    equipment.total_existing = defaults["total_existing"]
-                    equipment.quantity_needed = defaults["quantity_needed"]
-                    equipment.good_count = defaults["good_count"]
-                    equipment.repairable_count = defaults["repairable_count"]
-                    equipment.bad_count = defaults["bad_count"]
-                    equipment.unit_value_uf = defaults["unit_value_uf"]
-                    equipment.observations = defaults["observations"]
-                    equipment.save()
-
-            if created:
-                result["created"] += 1
-            else:
-                result["updated"] += 1
+            condition = resolve_condition(
+                good_count, repairable_count, bad_count)
 
             career_names = split_values(careers_text)
-            equipment.careers.clear()
+            subject_codes = split_values(subjects_text)
+
+            academic_area, _ = AcademicArea.objects.get_or_create(
+                name=str(academic_area_name).strip()
+            )
+
+            career_objects = []
             for career_name in career_names:
                 career, _ = Career.objects.get_or_create(name=career_name)
-                equipment.careers.add(career)
+                career_objects.append(career)
 
-            subject_codes = split_values(subjects_text)
-            equipment.subjects.clear()
+            subject_objects = []
             for subject_code in subject_codes:
                 subject, _ = Subject.objects.get_or_create(
                     code=subject_code,
                     defaults={"name": ""}
                 )
-                equipment.subjects.add(subject)
+                subject_objects.append(subject)
 
-            existing_codes = set(equipment.codes.values_list("code", flat=True))
             for code in codes:
-                if code not in existing_codes:
-                    EquipmentCode.objects.get_or_create(
-                        equipment=equipment,
-                        code=code,
-                        defaults={"code_type": "inventory"}
-                    )
+                equipment, created = Equipment.objects.update_or_create(
+                    inventory_code=code,
+                    defaults={
+                        "name": str(name).strip(),
+                        "detailed_spec": str(detailed_spec).strip() if detailed_spec else "",
+                        "academic_area": academic_area,
+                        "storage_location": location,
+                        "condition": condition,
+                        "unit_value_uf": Decimal(str(unit_value_uf)) if unit_value_uf not in (None, "") else None,
+                        "observations": str(observations).strip(),
+                    }
+                )
+
+                equipment.careers.set(career_objects)
+                equipment.subjects.set(subject_objects)
+
+                if created:
+                    result["created"] += 1
+                else:
+                    result["updated"] += 1
 
         except Exception as e:
             result["errors"].append(f"Fila {row_num}: {str(e)}")
@@ -131,7 +136,7 @@ def import_equipment_excel(file_obj):
 
 
 def import_supply_excel(file_obj):
-    wb = load_workbook(file_obj)
+    wb = load_workbook(file_obj, data_only=True)
     ws = wb.active
 
     result = {

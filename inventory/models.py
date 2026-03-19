@@ -39,8 +39,10 @@ class UserProfile(models.Model):
         (ROLE_PANOL, "Pañol"),
     ]
 
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
-    role = models.CharField("Rol", max_length=20, choices=ROLE_CHOICES, default=ROLE_STUDENT)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
+    role = models.CharField("Rol", max_length=20,
+                            choices=ROLE_CHOICES, default=ROLE_STUDENT)
     academic_area = models.ForeignKey(
         AcademicArea,
         on_delete=models.PROTECT,
@@ -105,6 +107,13 @@ class Subject(models.Model):
 
 
 class Equipment(TimeStampedModel):
+    CONDITION_CHOICES = [
+        ("good", "Bueno"),
+        ("repairable", "Reparable"),
+        ("bad", "Malo"),
+    ]
+
+    inventory_code = models.CharField("Código inventario", max_length=100, unique=True)
     name = models.CharField("Equipo", max_length=200)
     detailed_spec = models.TextField("Especificación técnica detallada", blank=True)
 
@@ -123,22 +132,17 @@ class Equipment(TimeStampedModel):
         StorageLocation,
         on_delete=models.PROTECT,
         related_name="equipments",
-        verbose_name="Lugar de almacenamiento"
+        verbose_name="Lugar de almacenamiento",
     )
 
-    total_existing = models.PositiveIntegerField("Cantidad total existente en la sede", default=0)
-    quantity_needed = models.PositiveIntegerField("Cantidad necesaria", default=0)
-
-    good_count = models.PositiveIntegerField("Bueno", default=0)
-    repairable_count = models.PositiveIntegerField("Reparable", default=0)
-    bad_count = models.PositiveIntegerField("Malo", default=0)
+    condition = models.CharField("Estado", max_length=20, choices=CONDITION_CHOICES, default="good")
 
     unit_value_uf = models.DecimalField(
         "Valor unitario UF (c/iva)",
         max_digits=10,
         decimal_places=2,
         null=True,
-        blank=True
+        blank=True,
     )
 
     observations = models.TextField("Observaciones", blank=True)
@@ -146,60 +150,14 @@ class Equipment(TimeStampedModel):
     class Meta:
         verbose_name = "Equipo"
         verbose_name_plural = "Equipos"
-        ordering = ["name"]
+        ordering = ["name", "inventory_code"]
 
     def __str__(self):
-        return self.name
-
-    @property
-    def breach(self):
-        return max(self.quantity_needed - self.total_existing, 0)
-
-    @property
-    def total_value_uf(self):
-        if self.unit_value_uf is None:
-            return Decimal("0.00")
-        return self.unit_value_uf * self.total_existing
-
-    def clean(self):
-        total_status = self.good_count + self.repairable_count + self.bad_count
-        if total_status != self.total_existing:
-            raise ValidationError(
-                "La suma de Bueno + Reparable + Malo debe ser igual a la cantidad total existente."
-            )
-
-
-class EquipmentCode(models.Model):
-    CODE_TYPE_CHOICES = [
-        ("inventory", "Código inventario"),
-        ("barcode", "Código barra"),
-        ("serial", "Serie"),
-        ("other", "Otro"),
-    ]
-
-    equipment = models.ForeignKey(
-        Equipment,
-        on_delete=models.CASCADE,
-        related_name="codes"
-    )
-    code = models.CharField(max_length=100, unique=True)
-    code_type = models.CharField(
-        max_length=20,
-        choices=CODE_TYPE_CHOICES,
-        default="inventory"
-    )
-
-    class Meta:
-        verbose_name = "Código de equipo"
-        verbose_name_plural = "Códigos de equipos"
-
-    def __str__(self):
-        return f"{self.code} ({self.get_code_type_display()})"
-
-
+        return f"{self.inventory_code} - {self.name}"
 class Supply(TimeStampedModel):
     name = models.CharField("Insumo", max_length=200)
-    detailed_spec = models.TextField("Especificación técnica detallada", blank=True)
+    detailed_spec = models.TextField(
+        "Especificación técnica detallada", blank=True)
 
     academic_area = models.ForeignKey(
         AcademicArea,
@@ -244,13 +202,18 @@ class Request(TimeStampedModel):
         (STATUS_REJECTED, "Rechazada"),
     ]
 
-    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="requests")
-    academic_area = models.ForeignKey(AcademicArea, on_delete=models.PROTECT, related_name="requests")
-    equipment = models.ForeignKey(Equipment, on_delete=models.PROTECT, related_name="requests", null=True, blank=True)
-    supply = models.ForeignKey(Supply, on_delete=models.PROTECT, related_name="requests", null=True, blank=True)
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="requests")
+    academic_area = models.ForeignKey(
+        AcademicArea, on_delete=models.PROTECT, related_name="requests")
+    equipment = models.ForeignKey(
+        Equipment, on_delete=models.PROTECT, related_name="requests", null=True, blank=True)
+    supply = models.ForeignKey(
+        Supply, on_delete=models.PROTECT, related_name="requests", null=True, blank=True)
     quantity = models.PositiveIntegerField("Cantidad solicitada", default=1)
     reason = models.TextField("Motivo", blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
 
     class Meta:
         verbose_name = "Solicitud"
@@ -263,7 +226,9 @@ class Request(TimeStampedModel):
 
     def clean(self):
         if bool(self.equipment) == bool(self.supply):
-            raise ValidationError("Debes seleccionar un equipo o un insumo, pero no ambos.")
+            raise ValidationError(
+                "Debes seleccionar un equipo o un insumo, pero no ambos.")
         item = self.equipment or self.supply
         if item and item.academic_area_id != self.academic_area_id:
-            raise ValidationError("El recurso solicitado no pertenece al área académica seleccionada.")
+            raise ValidationError(
+                "El recurso solicitado no pertenece al área académica seleccionada.")

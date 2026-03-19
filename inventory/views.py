@@ -37,6 +37,8 @@ class StudentRequiredMixin(UserPassesTestMixin):
         return profile and profile.role == UserProfile.ROLE_STUDENT
 
 
+from django.db.models import Q
+
 class EquipmentListView(LoginRequiredMixin, AreaFilteredMixin, ListView):
     model = Equipment
     template_name = "inventory/equipment_list.html"
@@ -44,13 +46,23 @@ class EquipmentListView(LoginRequiredMixin, AreaFilteredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = Equipment.objects.select_related("storage_location", "academic_area").prefetch_related("careers", "subjects", "codes")
+        queryset = Equipment.objects.select_related(
+            "storage_location",
+            "academic_area"
+        ).prefetch_related(
+            "careers",
+            "subjects"
+        )
+
         queryset = self.filter_by_area(queryset)
+
         q = self.request.GET.get("q")
         if q:
-            queryset = queryset.filter(name__icontains=q)
-        return queryset
+            queryset = queryset.filter(
+                Q(name__icontains=q) | Q(inventory_code__icontains=q)
+            )
 
+        return queryset
 
 class EquipmentCreateView(LoginRequiredMixin, InventoryManagerRequiredMixin, CreateView):
     model = Equipment
