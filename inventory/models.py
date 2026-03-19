@@ -154,6 +154,8 @@ class Equipment(TimeStampedModel):
 
     def __str__(self):
         return f"{self.inventory_code} - {self.name}"
+
+
 class Supply(TimeStampedModel):
     name = models.CharField("Insumo", max_length=200)
     detailed_spec = models.TextField(
@@ -206,14 +208,22 @@ class Request(TimeStampedModel):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="requests")
     academic_area = models.ForeignKey(
         AcademicArea, on_delete=models.PROTECT, related_name="requests")
-    equipment = models.ForeignKey(
-        Equipment, on_delete=models.PROTECT, related_name="requests", null=True, blank=True)
-    supply = models.ForeignKey(
-        Supply, on_delete=models.PROTECT, related_name="requests", null=True, blank=True)
-    quantity = models.PositiveIntegerField("Cantidad solicitada", default=1)
+    teacher_name = models.CharField("Docente", max_length=150, blank=True)
+    student_name = models.CharField("Alumno", max_length=150)
+    subject_name = models.CharField("Asignatura", max_length=150)
+    class_datetime = models.DateTimeField("Fecha y hora de realización de la clase")
+    work_groups = models.PositiveIntegerField("N° de grupos de trabajo", default=1)
     reason = models.TextField("Motivo", blank=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    delivery_received_by = models.CharField("Entrega - Recibido por", max_length=150, blank=True)
+    delivery_rut = models.CharField("Entrega - RUT", max_length=20, blank=True)
+    delivery_delivered_by = models.CharField("Entrega - Entregado por", max_length=150, blank=True)
+    delivery_datetime = models.DateTimeField("Entrega - Fecha y hora", null=True, blank=True)
+    reception_delivered_by = models.CharField("Recepción - Entregado por", max_length=150, blank=True)
+    reception_received_by = models.CharField("Recepción - Recibido por", max_length=150, blank=True)
+    reception_datetime = models.DateTimeField("Recepción - Fecha y hora", null=True, blank=True)
+    observations = models.TextField("Observaciones", blank=True)
 
     class Meta:
         verbose_name = "Solicitud"
@@ -221,14 +231,41 @@ class Request(TimeStampedModel):
         ordering = ["-created_at"]
 
     def __str__(self):
-        item = self.equipment or self.supply
-        return f"{self.requester.username} - {item}"
+        return f"{self.requester.username} - {self.subject_name}"
+
+    @property
+    def total_quantity(self):
+        return sum(item.quantity for item in self.items.all())
+
+
+class RequestItem(models.Model):
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name="items")
+    equipment = models.ForeignKey(
+        Equipment, on_delete=models.PROTECT, related_name="request_items", null=True, blank=True)
+    supply = models.ForeignKey(
+        Supply, on_delete=models.PROTECT, related_name="request_items", null=True, blank=True)
+    quantity = models.PositiveIntegerField("Cantidad solicitada", default=1)
+    received = models.BooleanField("Recibido", default=False)
+    delivered = models.BooleanField("Entrega", default=False)
+
+    class Meta:
+        verbose_name = "Ítem de solicitud"
+        verbose_name_plural = "Ítems de solicitud"
+
+    def __str__(self):
+        resource = self.equipment or self.supply
+        return f"{self.request} - {resource}"
+
+    @property
+    def resource_name(self):
+        resource = self.equipment or self.supply
+        return str(resource) if resource else ""
 
     def clean(self):
         if bool(self.equipment) == bool(self.supply):
             raise ValidationError(
                 "Debes seleccionar un equipo o un insumo, pero no ambos.")
         item = self.equipment or self.supply
-        if item and item.academic_area_id != self.academic_area_id:
+        if item and item.academic_area_id != self.request.academic_area_id:
             raise ValidationError(
                 "El recurso solicitado no pertenece al área académica seleccionada.")

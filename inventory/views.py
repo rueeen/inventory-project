@@ -1,10 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
-from .forms import EquipmentForm, SupplyForm, ImportExcelForm, RequestForm
+from .forms import EquipmentForm, SupplyForm, ImportExcelForm, RequestForm, RequestItemFormSet
 from .models import Equipment, Supply, Request, UserProfile
 from .services.importers import import_equipment_excel, import_supply_excel
 
@@ -36,8 +37,6 @@ class StudentRequiredMixin(UserPassesTestMixin):
         profile = getattr(self.request.user, "profile", None)
         return profile and profile.role == UserProfile.ROLE_STUDENT
 
-
-from django.db.models import Q
 
 class EquipmentListView(LoginRequiredMixin, AreaFilteredMixin, ListView):
     model = Equipment
@@ -125,7 +124,7 @@ class RequestListView(LoginRequiredMixin, AreaFilteredMixin, ListView):
     context_object_name = "requests"
 
     def get_queryset(self):
-        queryset = Request.objects.select_related("requester", "equipment", "supply", "academic_area")
+        queryset = Request.objects.select_related("requester", "academic_area").prefetch_related("items__equipment", "items__supply")
         if self.request.user.is_superuser:
             return queryset
         profile = self.request.user.profile
@@ -137,7 +136,7 @@ class RequestListView(LoginRequiredMixin, AreaFilteredMixin, ListView):
 class RequestCreateView(LoginRequiredMixin, StudentRequiredMixin, CreateView):
     model = Request
     form_class = RequestForm
-    template_name = "inventory/form.html"
+    template_name = "inventory/request_form.html"
     success_url = reverse_lazy("inventory:request_list")
 
     def get_form_kwargs(self):
@@ -145,12 +144,35 @@ class RequestCreateView(LoginRequiredMixin, StudentRequiredMixin, CreateView):
         kwargs["user"] = self.request.user
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        profile = getattr(self.request.user, "profile", None)
+        area = getattr(profile, "academic_area", None)
+        if self.request.method == "POST":
+            context["item_formset"] = RequestItemFormSet(self.request.POST, instance=self.object, area=area)
+        else:
+            context["item_formset"] = RequestItemFormSet(instance=self.object, area=area)
+        return context
+
     def form_valid(self, form):
+        context = self.get_context_data(form=form)
+        item_formset = context["item_formset"]
         profile = self.request.user.profile
         form.instance.requester = self.request.user
         form.instance.academic_area = profile.academic_area
+
+        if not item_formset.is_valid():
+            return self.form_invalid(form)
+
+        self.object = form.save()
+        item_formset.instance = self.object
+        item_formset.save()
         messages.success(self.request, "Solicitud registrada correctamente.")
-        return super().form_valid(form)
+        return redirect(self.success_url)
+
+    def form_invalid(self, form):
+        messages.error(self.request, "Revisa los datos de la solicitud antes de continuar.")
+        return self.render_to_response(self.get_context_data(form=form))
 
 
 def import_equipment_view(request):

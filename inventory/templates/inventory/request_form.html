@@ -1,0 +1,165 @@
+{% extends "inventory/base.html" %}
+
+{% block content %}
+<div class="request-shell">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {{ item_formset.management_form }}
+
+        {% if form.non_field_errors or item_formset.non_form_errors %}
+        <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+            {{ item_formset.non_form_errors }}
+        </div>
+        {% endif %}
+
+        <section class="request-sheet">
+            <header class="request-header">
+                <div>
+                    <p class="request-kicker">Solicitud</p>
+                    <h1>SOLICITUD INSTRUMENTACIÓN E INSUMOS</h1>
+                </div>
+                <div class="request-brand">
+                    <span class="brand-mark"></span>
+                    <span class="brand-text">inacap</span>
+                </div>
+            </header>
+
+            <div class="request-meta-grid">
+                <div class="request-field request-field--wide">
+                    <label>{{ form.teacher_name.label }}</label>
+                    {{ form.teacher_name }}
+                    {{ form.teacher_name.errors }}
+                </div>
+                <div class="request-field request-field--small">
+                    <label>N°</label>
+                    <input type="text" value="{% if object %}{{ object.pk }}{% endif %}" readonly>
+                </div>
+
+                <div class="request-field request-field--wide">
+                    <label>{{ form.student_name.label }}</label>
+                    {{ form.student_name }}
+                    {{ form.student_name.errors }}
+                </div>
+                <div class="request-field request-field--small">
+                    <label>Fecha</label>
+                    <input type="text" value="{% now 'd/m/Y' %}" readonly>
+                </div>
+
+                <div class="request-field request-field--wide">
+                    <label>{{ form.subject_name.label }}</label>
+                    {{ form.subject_name }}
+                    {{ form.subject_name.errors }}
+                </div>
+                <div class="request-field request-field--small">
+                    <label>Hora</label>
+                    <input type="text" value="{% now 'H:i' %}" readonly>
+                </div>
+
+                <div class="request-field request-field--wide request-field--full">
+                    <label>{{ form.class_datetime.label }}</label>
+                    {{ form.class_datetime }}
+                    {{ form.class_datetime.errors }}
+                </div>
+
+                <div class="request-field request-field--small request-field--groups">
+                    <label>{{ form.work_groups.label }}</label>
+                    {{ form.work_groups }}
+                    {{ form.work_groups.errors }}
+                </div>
+            </div>
+
+            <div class="request-table-wrap">
+                <table class="request-table">
+                    <thead>
+                        <tr>
+                            <th>DESCRIPCIÓN</th>
+                            <th>CANT</th>
+                            <th>RECIBIDO</th>
+                            <th>ENTREGA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item_form in item_formset %}
+                        <tr>
+                            <td>
+                                <div class="request-resource-grid">
+                                    {{ item_form.id }}
+                                    <div>
+                                        <span class="request-mini-label">Equipo</span>
+                                        {{ item_form.equipment }}
+                                    </div>
+                                    <div>
+                                        <span class="request-mini-label">Insumo</span>
+                                        {{ item_form.supply }}
+                                    </div>
+                                    {% if item_form.non_field_errors %}
+                                        <div class="request-row-error">{{ item_form.non_field_errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="request-qty-cell">
+                                {{ item_form.quantity }}
+                                {{ item_form.quantity.errors }}
+                            </td>
+                            <td class="request-check-cell">{{ item_form.received }}</td>
+                            <td class="request-check-cell">
+                                {{ item_form.delivered }}
+                                <div class="request-delete-cell">{{ item_form.DELETE }} <span>Eliminar</span></div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="request-reason-grid">
+                <div class="request-field">
+                    <label>{{ form.reason.label }}</label>
+                    {{ form.reason }}
+                </div>
+                <div class="request-field">
+                    <label>{{ form.observations.label }}</label>
+                    {{ form.observations }}
+                </div>
+            </div>
+
+            <div class="request-footer-grid">
+                <section>
+                    <h2>ENTREGA</h2>
+                    <div class="request-field-grid-2">
+                        <div class="request-field"><label>{{ form.delivery_received_by.label }}</label>{{ form.delivery_received_by }}</div>
+                        <div class="request-field"><label>{{ form.delivery_rut.label }}</label>{{ form.delivery_rut }}</div>
+                        <div class="request-field"><label>{{ form.delivery_delivered_by.label }}</label>{{ form.delivery_delivered_by }}</div>
+                        <div class="request-field"><label>{{ form.delivery_datetime.label }}</label>{{ form.delivery_datetime }}</div>
+                    </div>
+                </section>
+                <section>
+                    <h2>RECEPCIÓN</h2>
+                    <div class="request-field-grid-2">
+                        <div class="request-field"><label>{{ form.reception_delivered_by.label }}</label>{{ form.reception_delivered_by }}</div>
+                        <div class="request-field"><label>{{ form.reception_received_by.label }}</label>{{ form.reception_received_by }}</div>
+                        <div class="request-field request-field--full"><label>{{ form.reception_datetime.label }}</label>{{ form.reception_datetime }}</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="request-signatures">
+                <div>
+                    <span class="request-signature-line"></span>
+                    <strong>Firma Solicitante</strong>
+                </div>
+                <div>
+                    <span class="request-signature-line"></span>
+                    <strong>Firma Encargado</strong>
+                </div>
+            </div>
+        </section>
+
+        <div class="d-flex justify-content-between mt-4">
+            <a href="javascript:history.back()" class="btn btn-light">Cancelar</a>
+            <button type="submit" class="btn btn-dark px-4">Guardar solicitud</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

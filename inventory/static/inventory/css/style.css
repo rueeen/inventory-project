@@ -1,8 +1,9 @@
-/* Variables de color personalizadas */
 :root {
     --primary-color: #0d6efd;
-    --bg-light: #f8f9fa;
-    --border-color: #dee2e6;
+    --bg-light: #f4f4f4;
+    --border-color: #b8b8b8;
+    --sheet-border: #1f1f1f;
+    --sheet-muted: #d9d9d9;
 }
 
 body {
@@ -10,7 +11,6 @@ body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Estilización de Tarjetas */
 .card {
     border: none;
     border-radius: 12px;
@@ -23,7 +23,6 @@ body {
     font-weight: 600;
 }
 
-/* Tablas */
 .table thead th {
     background-color: #f1f5f9;
     text-transform: uppercase;
@@ -37,14 +36,14 @@ body {
     background-color: #f8fafc;
 }
 
-/* Inputs de Django (para que se vean como Bootstrap sin widget-tweaks) */
-input[type="text"], 
-input[type="number"], 
-input[type="email"], 
-input[type="url"], 
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="url"],
 input[type="password"],
 input[type="decimal"],
-select, 
+input[type="datetime-local"],
+select,
 textarea {
     display: block;
     width: 100%;
@@ -66,17 +65,210 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
-/* Badges personalizados */
 .badge-soft-info {
     background-color: #e0f2fe;
     color: #0369a1;
 }
 
-/* Utilidades para la brecha de inventario */
 .breach-critical {
     color: #dc3545;
     font-weight: bold;
     background-color: #fff5f5;
     padding: 2px 6px;
     border-radius: 4px;
+}
+
+.request-shell {
+    max-width: 1120px;
+    margin: 0 auto;
+}
+
+.request-sheet {
+    background: #fff;
+    border: 1px solid #d7d7d7;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.request-header,
+.request-meta-grid,
+.request-footer-grid,
+.request-signatures,
+.request-reason-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.request-header {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    margin-bottom: 1.5rem;
+}
+
+.request-kicker {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #6b7280;
+}
+
+.request-header h1 {
+    margin: 0.25rem 0 0;
+    font-size: 1.45rem;
+    font-weight: 800;
+}
+
+.request-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 2.2rem;
+    font-weight: 800;
+    text-transform: lowercase;
+}
+
+.brand-mark {
+    width: 1rem;
+    height: 2rem;
+    background: linear-gradient(90deg, #e21d24 65%, #ffffff 65%);
+    border: 1px solid #e21d24;
+}
+
+.request-meta-grid {
+    grid-template-columns: minmax(0, 1fr) 140px;
+    align-items: end;
+    margin-bottom: 1.5rem;
+}
+
+.request-field {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.request-field label,
+.request-mini-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.request-field--wide { grid-column: span 1; }
+.request-field--small { grid-column: span 1; }
+.request-field--full { grid-column: 1 / -1; }
+.request-field--groups { max-width: 340px; }
+
+.request-table-wrap {
+    overflow-x: auto;
+    margin: 1.5rem 0;
+}
+
+.request-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.request-table th,
+.request-table td {
+    border: 2px solid var(--sheet-border);
+    padding: 0.65rem;
+    vertical-align: top;
+}
+
+.request-table th {
+    background: var(--sheet-muted);
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.request-table th:first-child { width: 60%; }
+.request-table th:nth-child(2) { width: 12%; }
+.request-table th:nth-child(3),
+.request-table th:nth-child(4) { width: 14%; }
+
+.request-resource-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.request-row-error {
+    grid-column: 1 / -1;
+    color: #b91c1c;
+    font-size: 0.85rem;
+}
+
+.request-qty-cell input {
+    min-width: 84px;
+}
+
+.request-check-cell {
+    text-align: center;
+}
+
+.request-delete-cell {
+    margin-top: 0.65rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+}
+
+.request-reason-grid,
+.request-footer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.request-footer-grid h2 {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.request-field-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.request-signatures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3rem;
+    margin-top: 3rem;
+}
+
+.request-signature-line {
+    display: block;
+    width: 180px;
+    border-top: 1px solid #1f2937;
+    margin-bottom: 0.75rem;
+}
+
+.request-summary-list {
+    padding-left: 1rem;
+}
+
+@media (max-width: 768px) {
+    .request-sheet {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .request-header,
+    .request-meta-grid,
+    .request-reason-grid,
+    .request-footer-grid,
+    .request-field-grid-2,
+    .request-signatures,
+    .request-resource-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .request-brand {
+        font-size: 1.6rem;
+    }
 }

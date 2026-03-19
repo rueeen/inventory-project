@@ -9,7 +9,11 @@
             <div class="card-body">
                 <form method="post" novalidate>
                     {% csrf_token %}
-                    
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
                     {% for field in form %}
                     <div class="mb-3">
                         <label class="form-label fw-bold">{{ field.label }}</label>
@@ -28,29 +32,11 @@
 
                     <div class="d-flex justify-content-between mt-4">
                         <a href="javascript:history.back()" class="btn btn-light">Cancelar</a>
-                        <button type="submit" class="btn btn-primary px-4">Guardar Cambios</button>
+                        <button type="submit" class="btn btn-primary px-4">Guardar cambios</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    /* Estilo rápido para los inputs de Django */
-    input, select, textarea {
-        display: block;
-        width: 100%;
-        padding: 0.375rem 0.75rem;
-        font-size: 1rem;
-        font-weight: 400;
-        line-height: 1.5;
-        color: #212529;
-        background-color: #fff;
-        background-clip: padding-box;
-        border: 1px solid #dee2e6;
-        border-radius: 0.375rem;
-        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
-    }
-</style>
 {% endblock %}

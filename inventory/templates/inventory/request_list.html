@@ -16,10 +16,11 @@
             <thead class="table-light">
                 <tr>
                     <th>Fecha</th>
-                    <th>Usuario</th>
+                    <th>Alumno</th>
+                    <th>Docente</th>
+                    <th>Asignatura</th>
                     <th>Área</th>
-                    <th>Recurso</th>
-                    <th>Cantidad</th>
+                    <th>Detalle</th>
                     <th>Estado</th>
                 </tr>
             </thead>
@@ -27,15 +28,25 @@
                 {% for req in requests %}
                 <tr>
                     <td>{{ req.created_at|date:"d-m-Y H:i" }}</td>
-                    <td>{{ req.requester.username }}</td>
+                    <td>{{ req.student_name }}</td>
+                    <td>{{ req.teacher_name|default:"-" }}</td>
+                    <td>
+                        <strong>{{ req.subject_name }}</strong><br>
+                        <small class="text-muted">Clase: {{ req.class_datetime|date:"d-m-Y H:i" }}</small>
+                    </td>
                     <td>{{ req.academic_area }}</td>
-                    <td>{% if req.equipment %}Equipo: {{ req.equipment }}{% else %}Insumo: {{ req.supply }}{% endif %}</td>
-                    <td>{{ req.quantity }}</td>
+                    <td>
+                        <ul class="request-summary-list mb-0">
+                            {% for item in req.items.all %}
+                            <li>{{ item.resource_name }} — {{ item.quantity }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
                     <td>{{ req.get_status_display }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center py-4 text-muted">No hay solicitudes registradas.</td>
+                    <td colspan="7" class="text-center py-4 text-muted">No hay solicitudes registradas.</td>
                 </tr>
                 {% endfor %}
             </tbody>
