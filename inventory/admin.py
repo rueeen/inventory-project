@@ -73,21 +73,32 @@ class RequestAdmin(admin.ModelAdmin):
     list_display = (
         "requester",
         "academic_area",
-        "equipment",
-        "supply",
-        "quantity",
+        "requested_resources",
+        "total_quantity",
         "status",
         "created_at",
     )
     list_filter = ("academic_area", "status")
     search_fields = (
         "requester__username",
-        "equipment__name",
-        "equipment__inventory_code",
-        "supply__name",
+        "student_name",
+        "teacher_name",
+        "subject_name",
+        "items__equipment__name",
+        "items__equipment__inventory_code",
+        "items__supply__name",
     )
     readonly_fields = ("created_at", "updated_at")
-    list_select_related = ("requester", "academic_area", "equipment", "supply")
+    list_select_related = ("requester", "academic_area")
+
+    @admin.display(description="Recursos solicitados")
+    def requested_resources(self, obj):
+        resources = [item.resource_name for item in obj.items.all() if item.resource_name]
+        return ", ".join(resources) if resources else "-"
+
+    @admin.display(description="Cantidad total")
+    def total_quantity(self, obj):
+        return obj.total_quantity
 
 
 @admin.register(AcademicArea)
