@@ -1,19 +1,18 @@
-from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from .forms import LoginForm
 from .views import (
-    EquipmentListView,
-    EquipmentCreateView,
-    EquipmentUpdateView,
-    EquipmentDeleteView,
-    SupplyListView,
-    SupplyCreateView,
-    SupplyUpdateView,
-    SupplyDeleteView,
-    RequestListView,
-    RequestCreateView,
+    equipment_list_view,
+    equipment_create_view,
+    equipment_update_view,
+    equipment_delete_view,
+    supply_list_view,
+    supply_create_view,
+    supply_update_view,
+    supply_delete_view,
+    request_list_view,
+    request_create_view,
     import_equipment_view,
+    login_view,
     import_supply_view,
     logout_view,
 )
@@ -21,21 +20,21 @@ from .views import (
 app_name = "inventory"
 
 urlpatterns = [
-    path("", EquipmentListView.as_view(), name="equipment_list"),
-    path("login/", auth_views.LoginView.as_view(template_name="inventory/login.html", authentication_form=LoginForm), name="login"),
+    path("", equipment_list_view, name="equipment_list"),
+    path("login/", login_view, name="login"),
     path("logout/", logout_view, name="logout"),
 
-    path("equipos/nuevo/", EquipmentCreateView.as_view(), name="equipment_create"),
-    path("equipos/<int:pk>/editar/", EquipmentUpdateView.as_view(), name="equipment_update"),
-    path("equipos/<int:pk>/eliminar/", EquipmentDeleteView.as_view(), name="equipment_delete"),
+    path("equipos/nuevo/", equipment_create_view, name="equipment_create"),
+    path("equipos/<int:pk>/editar/", equipment_update_view, name="equipment_update"),
+    path("equipos/<int:pk>/eliminar/", equipment_delete_view, name="equipment_delete"),
     path("equipos/importar/", import_equipment_view, name="equipment_import"),
 
-    path("insumos/", SupplyListView.as_view(), name="supply_list"),
-    path("insumos/nuevo/", SupplyCreateView.as_view(), name="supply_create"),
-    path("insumos/<int:pk>/editar/", SupplyUpdateView.as_view(), name="supply_update"),
-    path("insumos/<int:pk>/eliminar/", SupplyDeleteView.as_view(), name="supply_delete"),
+    path("insumos/", supply_list_view, name="supply_list"),
+    path("insumos/nuevo/", supply_create_view, name="supply_create"),
+    path("insumos/<int:pk>/editar/", supply_update_view, name="supply_update"),
+    path("insumos/<int:pk>/eliminar/", supply_delete_view, name="supply_delete"),
     path("insumos/importar/", import_supply_view, name="supply_import"),
 
-    path("solicitudes/", RequestListView.as_view(), name="request_list"),
-    path("solicitudes/nueva/", RequestCreateView.as_view(), name="request_create"),
+    path("solicitudes/", request_list_view, name="request_list"),
+    path("solicitudes/nueva/", request_create_view, name="request_create"),
 ]
