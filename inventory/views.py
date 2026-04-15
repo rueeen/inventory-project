@@ -1,9 +1,12 @@
 from django.contrib import messages
+from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.views import redirect_to_login
 from django.db import connection
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.views.decorators.http import require_http_methods
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
 from .forms import EquipmentForm, SupplyForm, ImportExcelForm, RequestForm, RequestItemFormSet
@@ -309,3 +312,12 @@ def import_supply_view(request):
         "form": form,
         "title": "Importar insumos"
     })
+
+
+@require_http_methods(["GET", "POST"])
+def logout_view(request):
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+
+    logout(request)
+    return redirect("inventory:login")
