@@ -1,7 +1,7 @@
 from functools import wraps
 
 from django.contrib import messages
-from django.contrib.auth import login as auth_login, logout
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
 from django.core.paginator import Paginator
@@ -387,11 +387,3 @@ def import_supply_view(request):
         "title": "Importar insumos"
     })
 
-
-@require_http_methods(["GET", "POST"])
-def logout_view(request):
-    if not request.user.is_authenticated:
-        return redirect_to_login(request.get_full_path())
-
-    logout(request)
-    return redirect("inventory:login")

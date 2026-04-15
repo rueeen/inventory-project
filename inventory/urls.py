@@ -1,3 +1,4 @@
+from django.contrib.auth import views as auth_views
 from django.urls import path
 
 from .views import (
@@ -14,7 +15,6 @@ from .views import (
     import_equipment_view,
     login_view,
     import_supply_view,
-    logout_view,
 )
 
 app_name = "inventory"
@@ -22,7 +22,7 @@ app_name = "inventory"
 urlpatterns = [
     path("", equipment_list_view, name="equipment_list"),
     path("login/", login_view, name="login"),
-    path("logout/", logout_view, name="logout"),
+    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
 
     path("equipos/nuevo/", equipment_create_view, name="equipment_create"),
     path("equipos/<int:pk>/editar/", equipment_update_view, name="equipment_update"),
