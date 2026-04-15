@@ -34,7 +34,10 @@
                     {% if user.profile.academic_area %}
                         | {{ user.profile.academic_area }}
                     {% endif %}
-                    | <a href="{% url 'inventory:logout' %}" class="text-decoration-none text-light">Salir</a>
+                    | <form method="post" action="{% url 'inventory:logout' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-link text-decoration-none text-light p-0 align-baseline">Salir</button>
+                    </form>
                 </span>
                 {% endif %}
             </div>
