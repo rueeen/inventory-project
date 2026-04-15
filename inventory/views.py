@@ -1,7 +1,7 @@
 from functools import wraps
 
 from django.contrib import messages
-from django.contrib.auth import login as auth_login
+from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
 from django.core.paginator import Paginator
@@ -338,6 +338,14 @@ def request_create_view(request):
         },
     )
 
+
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def logout_view(request):
+    auth_logout(request)
+    return redirect("inventory:login")
 
 @require_http_methods(["GET", "POST"])
 def login_view(request):
