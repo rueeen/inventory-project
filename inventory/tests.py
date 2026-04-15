@@ -3,6 +3,7 @@ from io import BytesIO
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 from openpyxl import Workbook
 
 from .forms import RequestForm
@@ -146,3 +147,31 @@ class ImportEquipmentExcelTests(TestCase):
         self.assertEqual(result["created"], 2)
         self.assertEqual(Equipment.objects.count(), 2)
         self.assertEqual(EquipmentCode.objects.count(), 4)
+
+
+class LogoutViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="logout-user", password="12345678")
+        self.logout_url = reverse("inventory:logout")
+        self.home_url = reverse("inventory:equipment_list")
+
+    def test_logout_post_ends_session_and_redirects_to_login(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.logout_url, follow=True)
+
+        self.assertRedirects(response, reverse("inventory:login"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_logout_get_also_ends_session_and_redirects_to_login(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(self.logout_url, follow=True)
+
+        self.assertRedirects(response, reverse("inventory:login"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.get(self.logout_url)
+
+        self.assertRedirects(response, f"{reverse('inventory:login')}?next={self.logout_url}")
