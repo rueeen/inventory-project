@@ -22,7 +22,7 @@ app_name = "inventory"
 urlpatterns = [
     path("", EquipmentListView.as_view(), name="equipment_list"),
     path("login/", auth_views.LoginView.as_view(template_name="inventory/login.html", authentication_form=LoginForm), name="login"),
-    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("logout/", auth_views.LogoutView.as_view(next_page="inventory:login"), name="logout"),
 
     path("equipos/nuevo/", EquipmentCreateView.as_view(), name="equipment_create"),
     path("equipos/<int:pk>/editar/", EquipmentUpdateView.as_view(), name="equipment_update"),
