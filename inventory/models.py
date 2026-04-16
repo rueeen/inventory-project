@@ -305,6 +305,16 @@ class RequestItem(models.Model):
         verbose_name = "Ítem de solicitud"
         verbose_name_plural = "Ítems de solicitud"
         constraints = [
+            models.UniqueConstraint(
+                fields=["request", "equipment"],
+                condition=models.Q(equipment__isnull=False),
+                name="requestitem_unique_equipment_per_request",
+            ),
+            models.UniqueConstraint(
+                fields=["request", "supply"],
+                condition=models.Q(supply__isnull=False),
+                name="requestitem_unique_supply_per_request",
+            ),
             models.CheckConstraint(
                 check=(
                     (

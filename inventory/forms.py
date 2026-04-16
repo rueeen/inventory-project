@@ -60,13 +60,6 @@ class RequestForm(forms.ModelForm):
             "class_datetime",
             "work_groups",
             "reason",
-            "delivery_received_by",
-            "delivery_rut",
-            "delivery_delivered_by",
-            "delivery_datetime",
-            "reception_delivered_by",
-            "reception_received_by",
-            "reception_datetime",
             "observations",
         ]
         widgets = {
@@ -106,6 +99,7 @@ class RequestItemForm(forms.ModelForm):
         cleaned_data = super().clean()
         equipment = cleaned_data.get("equipment")
         supply = cleaned_data.get("supply")
+        quantity = cleaned_data.get("quantity") or 0
         marked_for_delete = cleaned_data.get("DELETE")
 
         if marked_for_delete:
@@ -113,6 +107,11 @@ class RequestItemForm(forms.ModelForm):
 
         if bool(equipment) == bool(supply):
             raise forms.ValidationError("Selecciona un equipo o un insumo por fila.")
+
+        if supply and quantity > supply.total_existing:
+            raise forms.ValidationError(
+                f"Stock insuficiente para '{supply.name}'. Disponible: {supply.total_existing}."
+            )
 
         return cleaned_data
 
@@ -137,12 +136,33 @@ class RequestItemFormSet(BaseRequestItemFormSet):
 
     def clean(self):
         super().clean()
+        selected_equipment_ids = set()
+        selected_supply_ids = set()
+
         valid_forms = [
             form for form in self.forms
             if form.cleaned_data and not form.cleaned_data.get("DELETE")
         ]
         if not valid_forms:
             raise forms.ValidationError("Debes agregar al menos un insumo o equipo a la solicitud.")
+
+        for form in valid_forms:
+            equipment = form.cleaned_data.get("equipment")
+            supply = form.cleaned_data.get("supply")
+
+            if equipment:
+                if equipment.pk in selected_equipment_ids:
+                    raise forms.ValidationError(
+                        f"El equipo '{equipment.name}' está repetido. Ajusta la cantidad en una sola fila."
+                    )
+                selected_equipment_ids.add(equipment.pk)
+
+            if supply:
+                if supply.pk in selected_supply_ids:
+                    raise forms.ValidationError(
+                        f"El insumo '{supply.name}' está repetido. Ajusta la cantidad en una sola fila."
+                    )
+                selected_supply_ids.add(supply.pk)
 
 
 class ImportExcelForm(forms.Form):

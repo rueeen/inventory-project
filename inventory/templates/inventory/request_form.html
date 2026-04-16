@@ -80,41 +80,42 @@
               </thead>
               <tbody id="formset-container">
                 {% for item_form in item_formset %}
-                  <tr class="item-row{% if item_form.errors %} table-danger{% endif %}">
-                    {{ item_form.id }}
-                    <td>
-                      <span class="fw-bold item-label">
-                        {{ item_form.instance.resource_name|default:"Nuevo recurso" }}
-                      </span>
-                      <div class="d-none">
-                        {{ item_form.equipment }}
-                        {{ item_form.supply }}
-                        {% if item_form.DELETE %}{{ item_form.DELETE }}{% endif %}
-                      </div>
-                      {% if item_form.non_field_errors %}
-                        <div class="text-danger small mt-1">{{ item_form.non_field_errors }}</div>
-                      {% endif %}
-                    </td>
-                    <td>
-                      {{ item_form.quantity }}
-                      {% if item_form.quantity.errors %}
-                        <div class="text-danger small mt-1">{{ item_form.quantity.errors }}</div>
-                      {% endif %}
-                    </td>
-                    <td class="text-end">
-                      <button type="button"
-                              class="btn btn-link text-danger btn-remove p-0"
-                              aria-label="Eliminar recurso"
-                              title="Eliminar recurso">
-                        <i class="bi bi-trash3-fill"></i>
-                      </button>
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr>
-                    <td colspan="3" class="text-center text-muted py-4">No hay recursos seleccionados.</td>
-                  </tr>
+                  {% if item_form.errors or item_form.instance.pk or item_form.equipment.value or item_form.supply.value %}
+                    <tr class="item-row{% if item_form.errors %} table-danger{% endif %}">
+                      {{ item_form.id }}
+                      <td>
+                        <span class="fw-bold item-display-name">
+                          {{ item_form.instance.resource_name|default:"Nuevo recurso" }}
+                        </span>
+                        <div class="d-none">
+                          {{ item_form.equipment }}
+                          {{ item_form.supply }}
+                          {% if item_form.DELETE %}{{ item_form.DELETE }}{% endif %}
+                        </div>
+                        {% if item_form.non_field_errors %}
+                          <div class="text-danger small mt-1">{{ item_form.non_field_errors }}</div>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {{ item_form.quantity }}
+                        {% if item_form.quantity.errors %}
+                          <div class="text-danger small mt-1">{{ item_form.quantity.errors }}</div>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        <button type="button"
+                                class="btn btn-link text-danger btn-remove p-0"
+                                aria-label="Eliminar recurso"
+                                title="Eliminar recurso">
+                          <i class="bi bi-trash3-fill"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  {% endif %}
                 {% endfor %}
+                <tr id="empty-state-row">
+                  <td colspan="3" class="text-center text-muted py-4">No hay recursos seleccionados.</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -156,12 +157,28 @@
       const container = document.getElementById("formset-container");
       const totalForms = document.getElementById("id_items-TOTAL_FORMS");
       const templateElement = document.getElementById("empty-row-template");
+      const emptyStateRow = document.getElementById("empty-state-row");
+      const equipmentSearch = document.getElementById("equipment-search");
+      const supplySearch = document.getElementById("supply-search");
+      const equipmentResults = document.getElementById("equipment-results");
+      const supplyResults = document.getElementById("supply-results");
+      const equipmentSearchUrl = "{% url 'inventory:equipment_search_api' %}";
+      const supplySearchUrl = "{% url 'inventory:supply_search_api' %}";
 
       if (!container || !totalForms || !templateElement) {
         return;
       }
 
       const template = templateElement.innerHTML;
+      const DEBOUNCE_MS = 250;
+
+      function toggleEmptyState() {
+        if (!emptyStateRow) {
+          return;
+        }
+        const visibleRows = container.querySelectorAll("tr.item-row:not(.d-none)").length;
+        emptyStateRow.classList.toggle("d-none", visibleRows > 0);
+      }
 
       function closeModalByType(type) {
         const modalId = type === "equipment" ? "equipmentModal" : "modalInsumos";
@@ -177,7 +194,38 @@
         }
       }
 
+      function upsertExistingResource(id, name, type) {
+        const selector = `[name$="-${type}"][value="${id}"]`;
+        const existingInput = container.querySelector(selector);
+        if (!existingInput) {
+          return false;
+        }
+
+        const row = existingInput.closest("tr");
+        const quantityInput = row ? row.querySelector('[name$="-quantity"]') : null;
+        if (quantityInput) {
+          const currentQuantity = Number.parseInt(quantityInput.value || "0", 10) || 0;
+          quantityInput.value = currentQuantity + 1;
+        }
+
+        if (row) {
+          row.classList.remove("d-none");
+          const deleteInput = row.querySelector('input[name$="-DELETE"]');
+          if (deleteInput) {
+            deleteInput.checked = false;
+          }
+        }
+
+        closeModalByType(type);
+        toggleEmptyState();
+        return true;
+      }
+
       window.addItemFromModal = function (id, name, type) {
+        if (upsertExistingResource(id, name, type)) {
+          return;
+        }
+
         const count = Number.parseInt(totalForms.value, 10);
         const newRowHtml = template.replace(/__prefix__/g, count);
 
@@ -207,7 +255,58 @@
 
         totalForms.value = count + 1;
         closeModalByType(type);
+        toggleEmptyState();
       };
+
+      async function searchResources(inputElement, resultsElement, endpoint, type) {
+        const query = inputElement.value.trim();
+        if (!query) {
+          resultsElement.innerHTML = '<div class="text-muted">Escribe para buscar.</div>';
+          return;
+        }
+
+        const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+          resultsElement.innerHTML = '<div class="text-danger">No fue posible buscar recursos.</div>';
+          return;
+        }
+
+        const payload = await response.json();
+        if (!payload.results.length) {
+          resultsElement.innerHTML = '<div class="text-muted">Sin resultados.</div>';
+          return;
+        }
+
+        resultsElement.innerHTML = payload.results.map((row) => {
+          const meta = type === "equipment"
+            ? `${row.inventory_code} · ${row.storage_location} · ${row.condition}`
+            : `${row.storage_location} · Stock: ${row.total_existing}`;
+
+          return `
+            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+              onclick="addItemFromModal(${row.id}, '${String(row.name).replace(/'/g, "\\'")}', '${type}')">
+              <span>
+                <strong>${row.name}</strong><br />
+                <small class="text-muted">${meta}</small>
+              </span>
+              <span class="badge text-bg-primary">Agregar</span>
+            </button>
+          `;
+        }).join("");
+      }
+
+      function bindSearch(inputElement, resultsElement, endpoint, type) {
+        if (!inputElement || !resultsElement) {
+          return;
+        }
+        let timeoutId;
+        inputElement.addEventListener("input", function () {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            searchResources(inputElement, resultsElement, endpoint, type);
+          }, DEBOUNCE_MS);
+        });
+      }
 
       container.addEventListener("click", function (event) {
         const removeButton = event.target.closest(".btn-remove");
@@ -228,7 +327,12 @@
         } else {
           row.remove();
         }
+        toggleEmptyState();
       });
+
+      bindSearch(equipmentSearch, equipmentResults, equipmentSearchUrl, "equipment");
+      bindSearch(supplySearch, supplyResults, supplySearchUrl, "supply");
+      toggleEmptyState();
     });
   </script>
 {% endblock js %}
