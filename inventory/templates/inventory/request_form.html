@@ -258,20 +258,7 @@
         toggleEmptyState();
       };
 
-      async function searchResources(inputElement, resultsElement, endpoint, type) {
-        const query = inputElement.value.trim();
-        if (!query) {
-          resultsElement.innerHTML = '<div class="text-muted">Escribe para buscar.</div>';
-          return;
-        }
-
-        const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`);
-        if (!response.ok) {
-          resultsElement.innerHTML = '<div class="text-danger">No fue posible buscar recursos.</div>';
-          return;
-        }
-
-        const payload = await response.json();
+      function renderResourceResults(resultsElement, type, payload) {
         if (!payload.results.length) {
           resultsElement.innerHTML = '<div class="text-muted">Sin resultados.</div>';
           return;
@@ -295,6 +282,19 @@
         }).join("");
       }
 
+      async function searchResources(inputElement, resultsElement, endpoint, type) {
+        const query = inputElement.value.trim();
+
+        const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+          resultsElement.innerHTML = '<div class="text-danger">No fue posible buscar recursos.</div>';
+          return;
+        }
+
+        const payload = await response.json();
+        renderResourceResults(resultsElement, type, payload);
+      }
+
       function bindSearch(inputElement, resultsElement, endpoint, type) {
         if (!inputElement || !resultsElement) {
           return;
@@ -305,6 +305,18 @@
           timeoutId = setTimeout(() => {
             searchResources(inputElement, resultsElement, endpoint, type);
           }, DEBOUNCE_MS);
+        });
+      }
+
+      function bindModalLoad(modalId, inputElement, resultsElement, endpoint, type) {
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement || !inputElement || !resultsElement) {
+          return;
+        }
+
+        modalElement.addEventListener("shown.bs.modal", () => {
+          inputElement.value = "";
+          searchResources(inputElement, resultsElement, endpoint, type);
         });
       }
 
@@ -332,6 +344,8 @@
 
       bindSearch(equipmentSearch, equipmentResults, equipmentSearchUrl, "equipment");
       bindSearch(supplySearch, supplyResults, supplySearchUrl, "supply");
+      bindModalLoad("equipmentModal", equipmentSearch, equipmentResults, equipmentSearchUrl, "equipment");
+      bindModalLoad("modalInsumos", supplySearch, supplyResults, supplySearchUrl, "supply");
       toggleEmptyState();
     });
   </script>
