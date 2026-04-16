@@ -1,42 +1,85 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+import re
+
 from openpyxl import load_workbook
 
-from ..models import AcademicArea, Equipment, Supply, StorageLocation, Career, Subject
+from ..models import AcademicArea, Career, Equipment, StorageLocation, Subject, Supply
 
 
-def split_values(text, separator=","):
-    if not text:
-        return []
-    return [item.strip() for item in str(text).split(separator) if item and str(item).strip()]
-
-
-def normalize_code(value):
+def clean_text(value):
     if value is None:
         return ""
-    return str(value).replace('"', "").replace("'", "").replace("\n", "").replace("\r", "").strip()
+    return str(value).strip()
 
 
-def extract_codes(value):
-    if not value:
+def parse_int(value, default=0):
+    if value in (None, ""):
+        return default
+
+    try:
+        text = str(value).strip().replace(",", ".")
+        return int(float(text))
+    except (TypeError, ValueError):
+        return default
+
+
+def parse_decimal(value):
+    if value in (None, ""):
+        return None
+
+    try:
+        text = str(value).strip().replace(",", ".")
+        return Decimal(text)
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
+def split_careers(text):
+    if not text:
         return []
 
-    raw = str(value).replace("\r", "\n")
-    parts = raw.split("\n")
+    raw = str(text).strip()
 
-    codes = []
+    if "," in raw or ";" in raw or "\n" in raw:
+        parts = re.split(r"[,;\n]+", raw)
+    else:
+        parts = re.split(r"\s+y\s+|\s+e\s+", raw, flags=re.IGNORECASE)
+
+    return [part.strip() for part in parts if part and part.strip()]
+
+
+def split_subjects(text):
+    if not text:
+        return []
+
+    parts = re.split(r"[,;\n]+", str(text))
+    result = []
+
     for part in parts:
-        cleaned = normalize_code(part)
-        if cleaned:
-            codes.append(cleaned)
+        item = part.strip()
+        if not item:
+            continue
 
-    # quita duplicados manteniendo orden
-    return list(dict.fromkeys(codes))
+        if " - " in item:
+            code, name = item.split(" - ", 1)
+            result.append((code.strip(), name.strip()))
+        else:
+            result.append((item, ""))
+
+    unique = []
+    seen = set()
+    for code, name in result:
+        if code not in seen:
+            unique.append((code, name))
+            seen.add(code)
+
+    return unique
 
 
 def resolve_condition(good_count, repairable_count, bad_count):
-    good_count = int(good_count or 0)
-    repairable_count = int(repairable_count or 0)
-    bad_count = int(bad_count or 0)
+    good_count = parse_int(good_count, 0)
+    repairable_count = parse_int(repairable_count, 0)
+    bad_count = parse_int(bad_count, 0)
 
     if bad_count > 0:
         return "bad"
@@ -45,9 +88,21 @@ def resolve_condition(good_count, repairable_count, bad_count):
     return "good"
 
 
-def import_equipment_excel(file_obj):
+def get_portada_area_name(workbook):
+    if "Portada" not in workbook.sheetnames:
+        return ""
+
+    ws = workbook["Portada"]
+    return clean_text(ws["E5"].value)
+
+
+def import_equipment_excel(file_obj, academic_area_name=None):
     wb = load_workbook(file_obj, data_only=True)
-    ws = wb.active
+
+    if "Equipos" not in wb.sheetnames:
+        raise ValueError("El archivo no contiene la hoja 'Equipos'.")
+
+    ws = wb["Equipos"]
 
     result = {
         "created": 0,
@@ -55,79 +110,89 @@ def import_equipment_excel(file_obj):
         "errors": [],
     }
 
-    for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+    area_name = academic_area_name or get_portada_area_name(wb)
+    academic_area = None
+    if area_name:
+        academic_area, _ = AcademicArea.objects.get_or_create(name=area_name)
+
+    for row_num, row in enumerate(ws.iter_rows(min_row=6, max_col=15, values_only=True), start=6):
         try:
-            inventory_codes = row[0]
-            name = row[1]
-            detailed_spec = row[2]
+            inventory_code = clean_text(row[0])
+            name = clean_text(row[1])
+            detailed_spec = clean_text(row[2])
             careers_text = row[3]
             subjects_text = row[4]
-            location_name = row[5]
-            good_count = row[9] or 0
-            repairable_count = row[10] or 0
-            bad_count = row[11] or 0
+            location_name = clean_text(row[5])
+            good_count = row[9]
+            repairable_count = row[10]
+            bad_count = row[11]
             unit_value_uf = row[12]
-            observations = row[14] or ""
-            academic_area_name = row[15]
+            observations = clean_text(row[14])
 
-            if not name:
+            if not inventory_code and not name:
                 continue
 
-            codes = extract_codes(inventory_codes)
-            if not codes:
+            if not inventory_code:
                 result["errors"].append(
-                    f"Fila {row_num}: no se encontró un código de inventario válido.")
+                    f"Fila {row_num}: no se encontró un código de inventario válido."
+                )
+                continue
+
+            if not name:
+                result["errors"].append(
+                    f"Fila {row_num}: no se encontró nombre de equipo."
+                )
                 continue
 
             location, _ = StorageLocation.objects.get_or_create(
-                name=str(location_name).strip(
-                ) if location_name else "Sin ubicación"
+                name=location_name or "Sin ubicación"
             )
 
             condition = resolve_condition(
                 good_count, repairable_count, bad_count)
 
-            career_names = split_values(careers_text)
-            subject_codes = split_values(subjects_text)
-
-            academic_area, _ = AcademicArea.objects.get_or_create(
-                name=str(academic_area_name).strip()
-            )
-
             career_objects = []
-            for career_name in career_names:
+            for career_name in split_careers(careers_text):
                 career, _ = Career.objects.get_or_create(name=career_name)
                 career_objects.append(career)
 
             subject_objects = []
-            for subject_code in subject_codes:
+            for subject_code, subject_name in split_subjects(subjects_text):
                 subject, _ = Subject.objects.get_or_create(
                     code=subject_code,
-                    defaults={"name": ""}
+                    defaults={"name": subject_name},
                 )
+
+                if subject_name and subject.name != subject_name:
+                    subject.name = subject_name
+                    subject.save(update_fields=["name"])
+
                 subject_objects.append(subject)
 
-            for code in codes:
-                equipment, created = Equipment.objects.update_or_create(
-                    inventory_code=code,
-                    defaults={
-                        "name": str(name).strip(),
-                        "detailed_spec": str(detailed_spec).strip() if detailed_spec else "",
-                        "academic_area": academic_area,
-                        "storage_location": location,
-                        "condition": condition,
-                        "unit_value_uf": Decimal(str(unit_value_uf)) if unit_value_uf not in (None, "") else None,
-                        "observations": str(observations).strip(),
-                    }
-                )
+            defaults = {
+                "name": name,
+                "detailed_spec": detailed_spec,
+                "storage_location": location,
+                "condition": condition,
+                "unit_value_uf": parse_decimal(unit_value_uf),
+                "observations": observations,
+            }
 
-                equipment.careers.set(career_objects)
-                equipment.subjects.set(subject_objects)
+            if academic_area is not None:
+                defaults["academic_area"] = academic_area
 
-                if created:
-                    result["created"] += 1
-                else:
-                    result["updated"] += 1
+            equipment, created = Equipment.objects.update_or_create(
+                inventory_code=inventory_code,
+                defaults=defaults,
+            )
+
+            equipment.careers.set(career_objects)
+            equipment.subjects.set(subject_objects)
+
+            if created:
+                result["created"] += 1
+            else:
+                result["updated"] += 1
 
         except Exception as e:
             result["errors"].append(f"Fila {row_num}: {str(e)}")
@@ -135,9 +200,13 @@ def import_equipment_excel(file_obj):
     return result
 
 
-def import_supply_excel(file_obj):
+def import_supply_excel(file_obj, academic_area_name=None):
     wb = load_workbook(file_obj, data_only=True)
-    ws = wb.active
+
+    if "Insumos" not in wb.sheetnames:
+        raise ValueError("El archivo no contiene la hoja 'Insumos'.")
+
+    ws = wb["Insumos"]
 
     result = {
         "created": 0,
@@ -145,29 +214,40 @@ def import_supply_excel(file_obj):
         "errors": [],
     }
 
-    for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+    area_name = academic_area_name or get_portada_area_name(wb)
+    academic_area = None
+    if area_name:
+        academic_area, _ = AcademicArea.objects.get_or_create(name=area_name)
+
+    for row_num, row in enumerate(ws.iter_rows(min_row=6, max_col=5, values_only=True), start=6):
         try:
-            name = row[0]
-            detailed_spec = row[1]
-            location_name = row[2]
-            total_existing = row[3] or 0
-            observations = row[4] or ""
+            name = clean_text(row[0])
+            detailed_spec = clean_text(row[1])
+            location_name = clean_text(row[2])
+            total_existing = parse_int(row[3], 0)
+            observations = clean_text(row[4])
 
             if not name:
                 continue
 
             location, _ = StorageLocation.objects.get_or_create(
-                name=str(location_name).strip() if location_name else "Sin ubicación"
+                name=location_name or "Sin ubicación"
             )
 
+            defaults = {
+                "detailed_spec": detailed_spec,
+                "storage_location": location,
+                "total_existing": total_existing,
+                "observations": observations,
+            }
+
+            if academic_area is not None:
+                defaults["academic_area"] = academic_area
+
             _, created = Supply.objects.update_or_create(
-                name=str(name).strip(),
+                name=name,
                 storage_location=location,
-                defaults={
-                    "detailed_spec": str(detailed_spec).strip() if detailed_spec else "",
-                    "total_existing": int(total_existing),
-                    "observations": str(observations).strip(),
-                }
+                defaults=defaults,
             )
 
             if created:

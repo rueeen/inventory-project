@@ -84,7 +84,7 @@
                     {{ item_form.id }}
                     <td>
                       <span class="fw-bold item-label">
-                        {{ item_form.instance.equipment.name|default:item_form.instance.supply.name|default:"Nuevo recurso" }}
+                        {{ item_form.instance.resource_name|default:"Nuevo recurso" }}
                       </span>
                       <div class="d-none">
                         {{ item_form.equipment }}
