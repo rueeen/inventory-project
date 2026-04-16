@@ -61,7 +61,7 @@
                             <th scope="col">Área</th>
                             <th scope="col">Ubicación</th>
                             <th scope="col">Stock</th>
-                            {% if user.profile.role != "student" %}<th scope="col" class="text-end">Acciones</th>{% endif %}
+                            <th scope="col" class="text-end">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -84,8 +84,15 @@
                                     <span class="badge bg-info text-dark">{{ supply.storage_location|default:"Sin ubicación" }}</span>
                                 </td>
                                 <td>{{ supply.total_existing|default:"0" }}</td>
-                                {% if user.profile.role != "student" %}
-                                    <td class="text-end">
+                                <td class="text-end">
+                                    {% if user.profile.role == "student" %}
+                                        <form method="post" action="{% url 'inventory:cart_add_supply' supply.pk %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-cart-plus"></i> Agregar
+                                            </button>
+                                        </form>
+                                    {% else %}
                                         <a href="{% url 'inventory:supply_update' supply.pk %}"
                                            class="btn btn-sm btn-outline-primary"
                                            title="Editar insumo"
@@ -98,12 +105,12 @@
                                            aria-label="Eliminar insumo {{ supply.name }}">
                                             <i class="bi bi-trash"></i>
                                         </a>
-                                    </td>
-                                {% endif %}
+                                    {% endif %}
+                                </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="{% if user.profile.role != 'student' %}6{% else %}5{% endif %}"
+                                <td colspan="6"
                                     class="text-center py-4 text-muted">
                                     No se encontraron insumos.
                                 </td>

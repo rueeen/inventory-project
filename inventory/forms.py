@@ -1,8 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
-from django.forms import inlineformset_factory
 
-from .models import Equipment, Supply, Request, RequestItem
+from .models import Equipment, Request, Supply
 
 
 class LoginForm(AuthenticationForm):
@@ -53,116 +52,14 @@ class SupplyForm(forms.ModelForm):
 class RequestForm(forms.ModelForm):
     class Meta:
         model = Request
-        fields = [
-            "teacher_name",
-            "student_name",
-            "subject_name",
-            "class_datetime",
-            "work_groups",
-            "reason",
-            "observations",
-        ]
+        fields = ["reason"]
         widgets = {
-            "class_datetime": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "delivery_datetime": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "reception_datetime": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "reason": forms.Textarea(attrs={"rows": 2}),
-            "observations": forms.Textarea(attrs={"rows": 3}),
+            "reason": forms.Textarea(attrs={"rows": 4, "placeholder": "Explica el motivo general de esta solicitud"}),
         }
 
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop("user")
-        super().__init__(*args, **kwargs)
-        self.user = user
-        profile = getattr(user, "profile", None)
-        area = getattr(profile, "academic_area", None)
-        if not self.instance.pk:
-            self.fields["student_name"].initial = user.get_full_name() or user.username
-        self.area = area
 
-
-class RequestItemForm(forms.ModelForm):
-    class Meta:
-        model = RequestItem
-        fields = ["equipment", "supply", "quantity", "received", "delivered"]
-
-    def __init__(self, *args, **kwargs):
-        area = kwargs.pop("area", None)
-        super().__init__(*args, **kwargs)
-        equipment_qs = Equipment.objects.filter(academic_area=area) if area else Equipment.objects.none()
-        supply_qs = Supply.objects.filter(academic_area=area) if area else Supply.objects.none()
-        self.fields["equipment"].queryset = equipment_qs
-        self.fields["supply"].queryset = supply_qs
-        self.fields["quantity"].widget.attrs.setdefault("min", 1)
-
-    def clean(self):
-        cleaned_data = super().clean()
-        equipment = cleaned_data.get("equipment")
-        supply = cleaned_data.get("supply")
-        quantity = cleaned_data.get("quantity") or 0
-        marked_for_delete = cleaned_data.get("DELETE")
-
-        if marked_for_delete:
-            return cleaned_data
-
-        if bool(equipment) == bool(supply):
-            raise forms.ValidationError("Selecciona un equipo o un insumo por fila.")
-
-        if supply and quantity > supply.total_existing:
-            raise forms.ValidationError(
-                f"Stock insuficiente para '{supply.name}'. Disponible: {supply.total_existing}."
-            )
-
-        return cleaned_data
-
-
-BaseRequestItemFormSet = inlineformset_factory(
-    Request,
-    RequestItem,
-    form=RequestItemForm,
-    extra=20,
-    can_delete=True,
-)
-
-
-class RequestItemFormSet(BaseRequestItemFormSet):
-    def __init__(self, *args, **kwargs):
-        self.area = kwargs.pop("area", None)
-        super().__init__(*args, **kwargs)
-
-    def _construct_form(self, i, **kwargs):
-        kwargs["area"] = self.area
-        return super()._construct_form(i, **kwargs)
-
-    def clean(self):
-        super().clean()
-        selected_equipment_ids = set()
-        selected_supply_ids = set()
-
-        valid_forms = [
-            form for form in self.forms
-            if form.cleaned_data and not form.cleaned_data.get("DELETE")
-        ]
-        if not valid_forms:
-            raise forms.ValidationError("Debes agregar al menos un insumo o equipo a la solicitud.")
-
-        for form in valid_forms:
-            equipment = form.cleaned_data.get("equipment")
-            supply = form.cleaned_data.get("supply")
-
-            if equipment:
-                if equipment.pk in selected_equipment_ids:
-                    raise forms.ValidationError(
-                        f"El equipo '{equipment.name}' está repetido. Ajusta la cantidad en una sola fila."
-                    )
-                selected_equipment_ids.add(equipment.pk)
-
-            if supply:
-                if supply.pk in selected_supply_ids:
-                    raise forms.ValidationError(
-                        f"El insumo '{supply.name}' está repetido. Ajusta la cantidad en una sola fila."
-                    )
-                selected_supply_ids.add(supply.pk)
+class CartQuantityForm(forms.Form):
+    quantity = forms.IntegerField(min_value=1, label="Cantidad")
 
 
 class ImportExcelForm(forms.Form):

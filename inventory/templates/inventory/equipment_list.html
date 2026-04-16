@@ -62,7 +62,7 @@
                             <th scope="col">Área</th>
                             <th scope="col">Ubicación</th>
                             <th scope="col">Valor UF</th>
-                            {% if user.profile.role != "student" %}<th scope="col" class="text-end">Acciones</th>{% endif %}
+                            <th scope="col" class="text-end">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -100,8 +100,15 @@
                                     </span>
                                 </td>
                                 <td>{{ equipment.unit_value_uf|default:"-" }}</td>
-                                {% if user.profile.role != "student" %}
-                                    <td class="text-end">
+                                <td class="text-end">
+                                    {% if user.profile.role == "student" %}
+                                        <form method="post" action="{% url 'inventory:cart_add_equipment' equipment.pk %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-cart-plus"></i> Agregar
+                                            </button>
+                                        </form>
+                                    {% else %}
                                         <a href="{% url 'inventory:equipment_update' equipment.pk %}"
                                            class="btn btn-sm btn-outline-primary"
                                            title="Editar equipo"
@@ -114,12 +121,12 @@
                                            aria-label="Eliminar equipo {{ equipment.name }}">
                                             <i class="bi bi-trash"></i>
                                         </a>
-                                    </td>
-                                {% endif %}
+                                    {% endif %}
+                                </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="{% if user.profile.role != 'student' %}7{% else %}6{% endif %}"
+                                <td colspan="7"
                                     class="text-center py-4 text-muted">
                                     No se encontraron equipos.
                                 </td>

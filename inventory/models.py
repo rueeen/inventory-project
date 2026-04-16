@@ -71,8 +71,7 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
 
 
 class StorageLocation(models.Model):
-    name = models.CharField("Lugar de almacenamiento",
-                            max_length=150, unique=True)
+    name = models.CharField("Lugar de almacenamiento", max_length=150, unique=True)
 
     class Meta:
         verbose_name = "Lugar de almacenamiento"
@@ -114,11 +113,9 @@ class Equipment(TimeStampedModel):
         REPAIRABLE = "repairable", "Reparable"
         BAD = "bad", "Malo"
 
-    inventory_code = models.CharField(
-        "Código inventario", max_length=100, unique=True)
+    inventory_code = models.CharField("Código inventario", max_length=100, unique=True)
     name = models.CharField("Equipo", max_length=200)
-    detailed_spec = models.TextField(
-        "Especificación técnica detallada", blank=True)
+    detailed_spec = models.TextField("Especificación técnica detallada", blank=True)
 
     academic_area = models.ForeignKey(
         AcademicArea,
@@ -126,10 +123,8 @@ class Equipment(TimeStampedModel):
         related_name="equipments",
         verbose_name="Área académica",
     )
-    careers = models.ManyToManyField(
-        Career, blank=True, verbose_name="Carreras")
-    subjects = models.ManyToManyField(
-        Subject, blank=True, verbose_name="Asignaturas")
+    careers = models.ManyToManyField(Career, blank=True, verbose_name="Carreras")
+    subjects = models.ManyToManyField(Subject, blank=True, verbose_name="Asignaturas")
 
     storage_location = models.ForeignKey(
         StorageLocation,
@@ -166,8 +161,7 @@ class Equipment(TimeStampedModel):
 
 class Supply(TimeStampedModel):
     name = models.CharField("Insumo", max_length=200)
-    detailed_spec = models.TextField(
-        "Especificación técnica detallada", blank=True)
+    detailed_spec = models.TextField("Especificación técnica detallada", blank=True)
 
     academic_area = models.ForeignKey(
         AcademicArea,
@@ -217,16 +211,6 @@ class Request(TimeStampedModel):
         related_name="requests",
         verbose_name="Área académica",
     )
-    teacher_name = models.CharField("Docente", max_length=150, blank=True)
-    student_name = models.CharField("Alumno", max_length=150)
-    subject_name = models.CharField("Asignatura", max_length=150)
-    class_datetime = models.DateTimeField(
-        "Fecha y hora de realización de la clase")
-    work_groups = models.PositiveIntegerField(
-        "N° de grupos de trabajo",
-        default=1,
-        validators=[MinValueValidator(1)],
-    )
     reason = models.TextField("Motivo", blank=True)
     status = models.CharField(
         "Estado",
@@ -234,20 +218,6 @@ class Request(TimeStampedModel):
         choices=Status.choices,
         default=Status.PENDING,
     )
-    delivery_received_by = models.CharField(
-        "Entrega - Recibido por", max_length=150, blank=True)
-    delivery_rut = models.CharField("Entrega - RUT", max_length=20, blank=True)
-    delivery_delivered_by = models.CharField(
-        "Entrega - Entregado por", max_length=150, blank=True)
-    delivery_datetime = models.DateTimeField(
-        "Entrega - Fecha y hora", null=True, blank=True)
-    reception_delivered_by = models.CharField(
-        "Recepción - Entregado por", max_length=150, blank=True)
-    reception_received_by = models.CharField(
-        "Recepción - Recibido por", max_length=150, blank=True)
-    reception_datetime = models.DateTimeField(
-        "Recepción - Fecha y hora", null=True, blank=True)
-    observations = models.TextField("Observaciones", blank=True)
 
     class Meta:
         verbose_name = "Solicitud"
@@ -255,7 +225,7 @@ class Request(TimeStampedModel):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.requester.username} - {self.subject_name}"
+        return f"Solicitud #{self.pk} - {self.requester.username}"
 
     @property
     def total_quantity(self):
@@ -298,8 +268,6 @@ class RequestItem(models.Model):
         default=1,
         validators=[MinValueValidator(1)],
     )
-    received = models.BooleanField("Recibido", default=False)
-    delivered = models.BooleanField("Entrega", default=False)
 
     class Meta:
         verbose_name = "Ítem de solicitud"
@@ -317,17 +285,11 @@ class RequestItem(models.Model):
             ),
             models.CheckConstraint(
                 check=(
-                    (
-                        models.Q(equipment__isnull=False)
-                        & models.Q(supply__isnull=True)
-                    )
-                    | (
-                        models.Q(equipment__isnull=True)
-                        & models.Q(supply__isnull=False)
-                    )
+                    (models.Q(equipment__isnull=False) & models.Q(supply__isnull=True))
+                    | (models.Q(equipment__isnull=True) & models.Q(supply__isnull=False))
                 ),
                 name="requestitem_exactly_one_resource",
-            )
+            ),
         ]
 
     def __str__(self):
@@ -343,14 +305,15 @@ class RequestItem(models.Model):
         super().clean()
 
         if bool(self.equipment) == bool(self.supply):
-            raise ValidationError(
-                "Debes seleccionar un equipo o un insumo, pero no ambos."
-            )
+            raise ValidationError("Debes seleccionar un equipo o un insumo, pero no ambos.")
 
-        item = self.equipment or self.supply
-        if item and self.request_id and item.academic_area_id != self.request.academic_area_id:
+        resource = self.equipment or self.supply
+        if resource and self.request_id and resource.academic_area_id != self.request.academic_area_id:
+            raise ValidationError("El recurso solicitado no pertenece al área académica seleccionada.")
+
+        if self.supply and self.quantity > self.supply.total_existing:
             raise ValidationError(
-                "El recurso solicitado no pertenece al área académica seleccionada."
+                f"Stock insuficiente para '{self.supply.name}'. Disponible: {self.supply.total_existing}."
             )
 
     def save(self, *args, **kwargs):

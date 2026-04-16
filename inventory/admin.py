@@ -5,6 +5,7 @@ from .models import (
     Career,
     Equipment,
     Request,
+    RequestItem,
     StorageLocation,
     Subject,
     Supply,
@@ -40,24 +41,6 @@ class EquipmentAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
     list_select_related = ("academic_area", "storage_location")
 
-    fieldsets = (
-        ("Identificación", {
-            "fields": ("inventory_code", "name", "condition")
-        }),
-        ("Detalle", {
-            "fields": ("detailed_spec", "academic_area", "storage_location")
-        }),
-        ("Relaciones académicas", {
-            "fields": ("careers", "subjects")
-        }),
-        ("Valores y observaciones", {
-            "fields": ("unit_value_uf", "observations")
-        }),
-        ("Auditoría", {
-            "fields": ("created_at", "updated_at")
-        }),
-    )
-
 
 @admin.register(Supply)
 class SupplyAdmin(admin.ModelAdmin):
@@ -68,12 +51,18 @@ class SupplyAdmin(admin.ModelAdmin):
     list_select_related = ("academic_area", "storage_location")
 
 
+class RequestItemInline(admin.TabularInline):
+    model = RequestItem
+    extra = 0
+    fields = ("equipment", "supply", "quantity")
+
+
 @admin.register(Request)
 class RequestAdmin(admin.ModelAdmin):
     list_display = (
+        "id",
         "requester",
         "academic_area",
-        "requested_resources",
         "total_quantity",
         "status",
         "created_at",
@@ -81,24 +70,14 @@ class RequestAdmin(admin.ModelAdmin):
     list_filter = ("academic_area", "status")
     search_fields = (
         "requester__username",
-        "student_name",
-        "teacher_name",
-        "subject_name",
+        "reason",
         "items__equipment__name",
         "items__equipment__inventory_code",
         "items__supply__name",
     )
     readonly_fields = ("created_at", "updated_at")
     list_select_related = ("requester", "academic_area")
-
-    @admin.display(description="Recursos solicitados")
-    def requested_resources(self, obj):
-        resources = [item.resource_name for item in obj.items.all() if item.resource_name]
-        return ", ".join(resources) if resources else "-"
-
-    @admin.display(description="Cantidad total")
-    def total_quantity(self, obj):
-        return obj.total_quantity
+    inlines = [RequestItemInline]
 
 
 @admin.register(AcademicArea)
