@@ -10,11 +10,11 @@
                 <h2 class="mb-1">
                     <i class="bi bi-journal-check"></i> Solicitudes
                 </h2>
-                <p class="text-muted mb-0">Consulta el listado de solicitudes registradas en el sistema.</p>
+                <p class="text-muted mb-0">Listado de solicitudes y sus ítems asociados.</p>
             </div>
             {% if user.profile.role == "student" %}
                 <a href="{{ request_create_url }}" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus-lg"></i> Nueva solicitud
+                    <i class="bi bi-cart"></i> Ver carrito / Nueva solicitud
                 </a>
             {% endif %}
         </div>
@@ -23,43 +23,32 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th scope="col">Solicitud</th>
                             <th scope="col">Fecha</th>
-                            <th scope="col">Alumno</th>
-                            <th scope="col">Docente</th>
-                            <th scope="col">Asignatura</th>
+                            <th scope="col">Solicitante</th>
                             <th scope="col">Área</th>
-                            <th scope="col">Detalle</th>
+                            <th scope="col">Ítems</th>
+                            <th scope="col">Motivo</th>
                             <th scope="col">Estado</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for req in requests %}
                             <tr>
+                                <td>#{{ req.id }}</td>
                                 <td>{{ req.created_at|date:"d-m-Y H:i" }}</td>
-                                <td>{{ req.student_name|default:"-" }}</td>
-                                <td>{{ req.teacher_name|default:"-" }}</td>
-                                <td>
-                                    <strong>{{ req.subject_name|default:"-" }}</strong>
-                                    <br />
-                                    <small class="text-muted">
-                                        Clase:
-                                        {% if req.class_datetime %}
-                                            {{ req.class_datetime|date:"d-m-Y H:i" }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </small>
-                                </td>
+                                <td>{{ req.requester.username }}</td>
                                 <td>{{ req.academic_area|default:"-" }}</td>
                                 <td>
                                     <ul class="request-summary-list mb-0">
-                                        {% for item in req.items_summary %}
-                                            <li>{{ item }}</li>
+                                        {% for item in req.items.all %}
+                                            <li>{{ item.resource_name }} x{{ item.quantity }}</li>
                                         {% empty %}
                                             <li class="text-muted">Sin ítems registrados.</li>
                                         {% endfor %}
                                     </ul>
                                 </td>
+                                <td>{{ req.reason|default:"-"|truncatechars:100 }}</td>
                                 <td>
                                     <span class="badge bg-secondary">{{ req.status_display|default:"Sin estado" }}</span>
                                 </td>
