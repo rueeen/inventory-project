@@ -1,59 +1,88 @@
 {% load static %}
+{% url 'inventory:equipment_list' as equipment_list_url %}
+{% url 'inventory:supply_list' as supply_list_url %}
+{% url 'inventory:request_list' as request_list_url %}
+{% url 'inventory:logout' as logout_url %}
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Inventario{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{% static 'inventory/css/style.css' %}">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="keywords" content="inventario, equipos, insumos, solicitudes" />
+    <title>
+      {% block title %}
+        Inventario
+      {% endblock title %}
+    </title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+          rel="stylesheet" />
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="{% static 'inventory/css/style.css' %}" />
+  </head>
+  <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'inventory:equipment_list' %}"><i class="bi bi-box-seam"></i> Inventario</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                {% if user.is_authenticated %}
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'equipment_list' %}active{% endif %}" href="{% url 'inventory:equipment_list' %}">Equipos</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'supply_list' %}active{% endif %}" href="{% url 'inventory:supply_list' %}">Insumos</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'request' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'inventory:request_list' %}">Solicitudes</a>
-                    </li>
-                </ul>
-                <span class="navbar-text">
-                    {{ user.username }}
-                    {% if user.profile.academic_area %}
-                        | {{ user.profile.academic_area }}
-                    {% endif %}
-                    | <a href="{% url 'inventory:logout' %}" class="text-decoration-none text-light">Salir</a>
-                </span>
-                {% endif %}
+      <div class="container">
+        <a class="navbar-brand" href="{{ equipment_list_url }}">
+          <i class="bi bi-box-seam"></i> Inventario
+        </a>
+        <button class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav"
+                aria-controls="navbarNav"
+                aria-expanded="false"
+                aria-label="Abrir menú de navegación">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          {% if user.is_authenticated %}
+            <ul class="navbar-nav me-auto">
+              <li class="nav-item">
+                <a class="nav-link {% if request.path == equipment_list_url %}active{% endif %}"
+                   href="{{ equipment_list_url }}">Equipos</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if request.path == supply_list_url %}active{% endif %}"
+                   href="{{ supply_list_url }}">Insumos</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if request.path == request_list_url %}active{% endif %}"
+                   href="{{ request_list_url }}">Solicitudes</a>
+              </li>
+            </ul>
+            <div class="d-flex align-items-center gap-2 text-white">
+              <span class="navbar-text text-white">
+                {{ user.username }}
+                {% if user.profile.academic_area %}| {{ user.profile.academic_area }}{% endif %}
+              </span>
+              <span class="text-white">|</span>
+              <form action="{{ logout_url }}" method="post" class="m-0">
+                {% csrf_token %}
+                <button type="submit"
+                        class="btn btn-link text-light text-decoration-none p-0">Salir</button>
+              </form>
             </div>
+          {% endif %}
         </div>
+      </div>
     </nav>
-
-    <div class="container">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-
-        {% block content %}{% endblock %}
-    </div>
-
+    <main class="container">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show"
+               role="alert">
+            {{ message }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Cerrar"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}
+      {% endblock content %}
+    </main>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+  </body>
 </html>

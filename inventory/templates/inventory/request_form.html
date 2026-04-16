@@ -1,165 +1,234 @@
 {% extends "inventory/base.html" %}
-
+{% block title %}
+  Solicitud de instrumentación
+{% endblock title %}
 {% block content %}
-<div class="request-shell">
-    <form method="post" novalidate>
-        {% csrf_token %}
-        {{ item_formset.management_form }}
-
-        {% if form.non_field_errors or item_formset.non_form_errors %}
-        <div class="alert alert-danger">
-            {{ form.non_field_errors }}
-            {{ item_formset.non_form_errors }}
+  {% url 'inventory:request_list' as request_list_url %}
+  <div class="container py-4">
+    <form method="post" id="request-form" novalidate>
+      {% csrf_token %}
+      {{ item_formset.management_form }}
+      {% if form.non_field_errors or item_formset.non_form_errors or form.errors or item_formset.errors %}
+        <div class="alert alert-danger shadow-sm border-0" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          Hay errores en el formulario. Por favor, revísalos abajo.
         </div>
-        {% endif %}
-
-        <section class="request-sheet">
-            <header class="request-header">
-                <div>
-                    <p class="request-kicker">Solicitud</p>
-                    <h1>SOLICITUD INSTRUMENTACIÓN E INSUMOS</h1>
-                </div>
-                <div class="request-brand">
-                    <span class="brand-mark"></span>
-                    <span class="brand-text">inacap</span>
-                </div>
-            </header>
-
-            <div class="request-meta-grid">
-                <div class="request-field request-field--wide">
-                    <label>{{ form.teacher_name.label }}</label>
-                    {{ form.teacher_name }}
-                    {{ form.teacher_name.errors }}
-                </div>
-                <div class="request-field request-field--small">
-                    <label>N°</label>
-                    <input type="text" value="{% if object %}{{ object.pk }}{% endif %}" readonly>
-                </div>
-
-                <div class="request-field request-field--wide">
-                    <label>{{ form.student_name.label }}</label>
-                    {{ form.student_name }}
-                    {{ form.student_name.errors }}
-                </div>
-                <div class="request-field request-field--small">
-                    <label>Fecha</label>
-                    <input type="text" value="{% now 'd/m/Y' %}" readonly>
-                </div>
-
-                <div class="request-field request-field--wide">
-                    <label>{{ form.subject_name.label }}</label>
-                    {{ form.subject_name }}
-                    {{ form.subject_name.errors }}
-                </div>
-                <div class="request-field request-field--small">
-                    <label>Hora</label>
-                    <input type="text" value="{% now 'H:i' %}" readonly>
-                </div>
-
-                <div class="request-field request-field--wide request-field--full">
-                    <label>{{ form.class_datetime.label }}</label>
-                    {{ form.class_datetime }}
-                    {{ form.class_datetime.errors }}
-                </div>
-
-                <div class="request-field request-field--small request-field--groups">
-                    <label>{{ form.work_groups.label }}</label>
-                    {{ form.work_groups }}
-                    {{ form.work_groups.errors }}
-                </div>
+      {% endif %}
+      <section class="card border-0 shadow-lg mb-4">
+        <header class="card-header bg-white border-bottom-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+          <div>
+            <p class="text-uppercase text-muted small fw-bold mb-0">Gestión de Inventario</p>
+            <h1 class="h3 mb-0">Solicitud de instrumentación</h1>
+          </div>
+          <div class="text-danger fs-3 fw-bold">INACAP</div>
+        </header>
+        <div class="card-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="{{ form.teacher_name.id_for_label }}"
+                     class="form-label fw-semibold">{{ form.teacher_name.label }}</label>
+              {{ form.teacher_name }}
+              {% if form.teacher_name.errors %}
+                <div class="text-danger small mt-1">{{ form.teacher_name.errors }}</div>
+              {% endif %}
             </div>
-
-            <div class="request-table-wrap">
-                <table class="request-table">
-                    <thead>
-                        <tr>
-                            <th>DESCRIPCIÓN</th>
-                            <th>CANT</th>
-                            <th>RECIBIDO</th>
-                            <th>ENTREGA</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item_form in item_formset %}
-                        <tr>
-                            <td>
-                                <div class="request-resource-grid">
-                                    {{ item_form.id }}
-                                    <div>
-                                        <span class="request-mini-label">Equipo</span>
-                                        {{ item_form.equipment }}
-                                    </div>
-                                    <div>
-                                        <span class="request-mini-label">Insumo</span>
-                                        {{ item_form.supply }}
-                                    </div>
-                                    {% if item_form.non_field_errors %}
-                                        <div class="request-row-error">{{ item_form.non_field_errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td class="request-qty-cell">
-                                {{ item_form.quantity }}
-                                {{ item_form.quantity.errors }}
-                            </td>
-                            <td class="request-check-cell">{{ item_form.received }}</td>
-                            <td class="request-check-cell">
-                                {{ item_form.delivered }}
-                                <div class="request-delete-cell">{{ item_form.DELETE }} <span>Eliminar</span></div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="col-md-6">
+              <label for="{{ form.student_name.id_for_label }}"
+                     class="form-label fw-semibold">{{ form.student_name.label }}</label>
+              {{ form.student_name }}
+              {% if form.student_name.errors %}
+                <div class="text-danger small mt-1">{{ form.student_name.errors }}</div>
+              {% endif %}
             </div>
-
-            <div class="request-reason-grid">
-                <div class="request-field">
-                    <label>{{ form.reason.label }}</label>
-                    {{ form.reason }}
-                </div>
-                <div class="request-field">
-                    <label>{{ form.observations.label }}</label>
-                    {{ form.observations }}
-                </div>
+          </div>
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger mt-3 mb-0" role="alert">{{ form.non_field_errors }}</div>
+          {% endif %}
+          {% if item_formset.non_form_errors %}
+            <div class="alert alert-danger mt-3 mb-0" role="alert">{{ item_formset.non_form_errors }}</div>
+          {% endif %}
+          <hr class="my-4 opacity-25" />
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <h2 class="h5 mb-0">
+              <i class="bi bi-box-seam me-2"></i>Recursos seleccionados
+            </h2>
+            <div class="btn-group shadow-sm"
+                 role="group"
+                 aria-label="Agregar recursos">
+              <button type="button"
+                      class="btn btn-dark"
+                      data-bs-toggle="modal"
+                      data-bs-target="#equipmentModal">
+                <i class="bi bi-plus-circle me-1"></i> Equipo
+              </button>
+              <button type="button"
+                      class="btn btn-outline-dark"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalInsumos">
+                <i class="bi bi-plus-circle me-1"></i> Insumo
+              </button>
             </div>
-
-            <div class="request-footer-grid">
-                <section>
-                    <h2>ENTREGA</h2>
-                    <div class="request-field-grid-2">
-                        <div class="request-field"><label>{{ form.delivery_received_by.label }}</label>{{ form.delivery_received_by }}</div>
-                        <div class="request-field"><label>{{ form.delivery_rut.label }}</label>{{ form.delivery_rut }}</div>
-                        <div class="request-field"><label>{{ form.delivery_delivered_by.label }}</label>{{ form.delivery_delivered_by }}</div>
-                        <div class="request-field"><label>{{ form.delivery_datetime.label }}</label>{{ form.delivery_datetime }}</div>
-                    </div>
-                </section>
-                <section>
-                    <h2>RECEPCIÓN</h2>
-                    <div class="request-field-grid-2">
-                        <div class="request-field"><label>{{ form.reception_delivered_by.label }}</label>{{ form.reception_delivered_by }}</div>
-                        <div class="request-field"><label>{{ form.reception_received_by.label }}</label>{{ form.reception_received_by }}</div>
-                        <div class="request-field request-field--full"><label>{{ form.reception_datetime.label }}</label>{{ form.reception_datetime }}</div>
-                    </div>
-                </section>
-            </div>
-
-            <div class="request-signatures">
-                <div>
-                    <span class="request-signature-line"></span>
-                    <strong>Firma Solicitante</strong>
-                </div>
-                <div>
-                    <span class="request-signature-line"></span>
-                    <strong>Firma Encargado</strong>
-                </div>
-            </div>
-        </section>
-
-        <div class="d-flex justify-content-between mt-4">
-            <a href="javascript:history.back()" class="btn btn-light">Cancelar</a>
-            <button type="submit" class="btn btn-dark px-4">Guardar solicitud</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0" id="items-table">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Recurso</th>
+                  <th scope="col" class="col-cantidad">Cantidad</th>
+                  <th scope="col" class="text-end col-accion">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="formset-container">
+                {% for item_form in item_formset %}
+                  <tr class="item-row{% if item_form.errors %} table-danger{% endif %}">
+                    {{ item_form.id }}
+                    <td>
+                      <span class="fw-bold item-label">
+                        {{ item_form.instance.equipment.name|default:item_form.instance.supply.name|default:"Nuevo recurso" }}
+                      </span>
+                      <div class="d-none">
+                        {{ item_form.equipment }}
+                        {{ item_form.supply }}
+                        {% if item_form.DELETE %}{{ item_form.DELETE }}{% endif %}
+                      </div>
+                      {% if item_form.non_field_errors %}
+                        <div class="text-danger small mt-1">{{ item_form.non_field_errors }}</div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {{ item_form.quantity }}
+                      {% if item_form.quantity.errors %}
+                        <div class="text-danger small mt-1">{{ item_form.quantity.errors }}</div>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <button type="button"
+                              class="btn btn-link text-danger btn-remove p-0"
+                              aria-label="Eliminar recurso"
+                              title="Eliminar recurso">
+                        <i class="bi bi-trash3-fill"></i>
+                      </button>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="3" class="text-center text-muted py-4">No hay recursos seleccionados.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
+      </section>
+      <div class="d-flex justify-content-between align-items-center mb-5">
+        <a href="{{ request_list_url }}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left me-1"></i> Volver al listado
+        </a>
+        <button type="submit" class="btn btn-primary btn-lg px-5 shadow-sm">Guardar solicitud</button>
+      </div>
     </form>
-</div>
-{% endblock %}
+  </div>
+  <script type="text/html" id="empty-row-template">
+    <tr class="item-row">
+      <td>
+        <span class="fw-bold item-display-name text-primary"></span>
+        <div class="d-none">
+          {{ item_formset.empty_form.equipment }}
+          {{ item_formset.empty_form.supply }}
+          {% if item_formset.empty_form.DELETE %}{{ item_formset.empty_form.DELETE }}{% endif %}
+        </div>
+      </td>
+      <td>
+        {{ item_formset.empty_form.quantity }}
+      </td>
+      <td class="text-end">
+        <button type="button" class="btn btn-link text-danger btn-remove p-0" aria-label="Eliminar recurso" title="Eliminar recurso">
+          <i class="bi bi-trash3-fill"></i>
+        </button>
+      </td>
+    </tr>
+  </script>
+  {% include "inventory/includes/equipment_modal.html" %}
+{% endblock content %}
+{% block js %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const container = document.getElementById("formset-container");
+      const totalForms = document.getElementById("id_items-TOTAL_FORMS");
+      const templateElement = document.getElementById("empty-row-template");
+
+      if (!container || !totalForms || !templateElement) {
+        return;
+      }
+
+      const template = templateElement.innerHTML;
+
+      function closeModalByType(type) {
+        const modalId = type === "equipment" ? "equipmentModal" : "modalInsumos";
+        const modalElement = document.getElementById(modalId);
+
+        if (!modalElement) {
+          return;
+        }
+
+        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+        if (modalInstance) {
+          modalInstance.hide();
+        }
+      }
+
+      window.addItemFromModal = function (id, name, type) {
+        const count = Number.parseInt(totalForms.value, 10);
+        const newRowHtml = template.replace(/__prefix__/g, count);
+
+        container.insertAdjacentHTML("beforeend", newRowHtml);
+
+        const lastRow = container.lastElementChild;
+        if (!lastRow) {
+          return;
+        }
+
+        const displayName = lastRow.querySelector(".item-display-name");
+        if (displayName) {
+          displayName.textContent = name;
+        }
+
+        const fieldName = type === "equipment" ? "equipment" : "supply";
+        const input = lastRow.querySelector(`[name$="-${fieldName}"]`);
+
+        if (input) {
+          input.value = id;
+        }
+
+        const quantityInput = lastRow.querySelector('[name$="-quantity"]');
+        if (quantityInput && !quantityInput.value) {
+          quantityInput.value = 1;
+        }
+
+        totalForms.value = count + 1;
+        closeModalByType(type);
+      };
+
+      container.addEventListener("click", function (event) {
+        const removeButton = event.target.closest(".btn-remove");
+        if (!removeButton) {
+          return;
+        }
+
+        const row = removeButton.closest("tr");
+        if (!row) {
+          return;
+        }
+
+        const deleteInput = row.querySelector('input[name$="-DELETE"]');
+
+        if (deleteInput) {
+          deleteInput.checked = true;
+          row.classList.add("d-none");
+        } else {
+          row.remove();
+        }
+      });
+    });
+  </script>
+{% endblock js %}

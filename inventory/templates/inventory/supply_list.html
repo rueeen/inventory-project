@@ -1,74 +1,117 @@
 {% extends "inventory/base.html" %}
-
+{% block title %}
+    Inventario de Insumos
+{% endblock title %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-box2-heart"></i> Inventario de Insumos</h2>
-    <div>
-        <a href="{% url 'inventory:supply_import' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-file-earmark-excel"></i> Importar
-        </a>
-        {% if user.profile.role != "student" %}<a href="{% url 'inventory:supply_create' %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-lg"></i> Nuevo Insumo
-        </a>{% endif %}
-    </div>
-</div>
-
-<div class="card p-3 mb-4">
-    <form method="get" class="row g-2">
-        <div class="col-auto">
-            <input type="text" name="q" class="form-control" placeholder="Buscar insumo..." value="{{ request.GET.q }}">
+    {% url 'inventory:supply_list' as supply_list_url %}
+    {% url 'inventory:supply_import' as supply_import_url %}
+    {% url 'inventory:supply_create' as supply_create_url %}
+    <section class="supply-list">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+            <div>
+                <h2 class="mb-1">
+                    <i class="bi bi-box2-heart"></i> Inventario de Insumos
+                </h2>
+                <p class="text-muted mb-0">Consulta, búsqueda y administración de insumos registrados.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ supply_import_url }}"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-file-earmark-excel"></i> Importar
+                </a>
+                {% if user.profile.role != "student" %}
+                    <a href="{{ supply_create_url }}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-lg"></i> Nuevo insumo
+                    </a>
+                {% endif %}
+            </div>
         </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-dark">Buscar</button>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-2 align-items-end">
+                    <div class="col-md-6 col-lg-4">
+                        <label for="search-supply" class="form-label">Buscar insumo</label>
+                        <input type="text"
+                               id="search-supply"
+                               name="q"
+                               class="form-control"
+                               placeholder="Buscar insumo..."
+                               value="{{ request.GET.q|default:'' }}" />
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-search"></i> Buscar
+                        </button>
+                    </div>
+                    {% if request.GET.q %}
+                        <div class="col-auto">
+                            <a href="{{ supply_list_url }}" class="btn btn-outline-secondary">Limpiar</a>
+                        </div>
+                    {% endif %}
+                </form>
+            </div>
         </div>
-    </form>
-</div>
-
-<div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Nombre</th>
-                    <th>Especificación</th>
-                    <th>Área</th>
-                    <th>Ubicación</th>
-                    <th>Stock</th>
-                    <th class="text-end">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for supply in supplies %}
-                <tr>
-                    <td><strong>{{ supply.name }}</strong></td>
-                    <td>
-                        {% if supply.detailed_spec %}
-                            {{ supply.detailed_spec|truncatechars:80 }}
-                        {% else %}
-                            <span class="text-muted">Sin especificación</span>
-                        {% endif %}
-                    </td>
-                    <td><span class="badge bg-secondary">{{ supply.academic_area|default:"Sin área" }}</span></td>
-                    <td><span class="badge bg-info text-dark">{{ supply.storage_location }}</span></td>
-                    <td>{{ supply.total_existing }}</td>
-                    <td class="text-end">
-                        {% if user.profile.role != "student" %}
-                        <a href="{% url 'inventory:supply_update' supply.pk %}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <a href="{% url 'inventory:supply_delete' supply.pk %}" class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-trash"></i>
-                        </a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center py-4 text-muted">No se encontraron insumos.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endblock %}
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Especificación</th>
+                            <th scope="col">Área</th>
+                            <th scope="col">Ubicación</th>
+                            <th scope="col">Stock</th>
+                            {% if user.profile.role != "student" %}<th scope="col" class="text-end">Acciones</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supply in supplies %}
+                            <tr>
+                                <td>
+                                    <strong>{{ supply.name|default:"-" }}</strong>
+                                </td>
+                                <td>
+                                    {% if supply.detailed_spec %}
+                                        {{ supply.detailed_spec|truncatechars:80 }}
+                                    {% else %}
+                                        <span class="text-muted">Sin especificación</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ supply.academic_area|default:"Sin área" }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info text-dark">{{ supply.storage_location|default:"Sin ubicación" }}</span>
+                                </td>
+                                <td>{{ supply.total_existing|default:"0" }}</td>
+                                {% if user.profile.role != "student" %}
+                                    <td class="text-end">
+                                        <a href="{% url 'inventory:supply_update' supply.pk %}"
+                                           class="btn btn-sm btn-outline-primary"
+                                           title="Editar insumo"
+                                           aria-label="Editar insumo {{ supply.name }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a href="{% url 'inventory:supply_delete' supply.pk %}"
+                                           class="btn btn-sm btn-outline-danger"
+                                           title="Eliminar insumo"
+                                           aria-label="Eliminar insumo {{ supply.name }}">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </td>
+                                {% endif %}
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="{% if user.profile.role != 'student' %}6{% else %}5{% endif %}"
+                                    class="text-center py-4 text-muted">
+                                    No se encontraron insumos.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+{% endblock content %}

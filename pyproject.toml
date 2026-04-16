@@ -1,0 +1,5 @@
+[tool.djlint]
+profile = "django"
+ignore = "H031,H030"
+indent = 2
+max_line_length = 100
